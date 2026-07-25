@@ -96,4 +96,36 @@ public class SportFoldersController : ControllerBase
 
         return StatusCode(StatusCodes.Status201Created, response);
     }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<SportFolderDto>> Update(int id, [FromBody] UpdateSportFolderDto updateDto)
+    {
+        var sportFolder = await _dbContext.SportFolders.FindAsync(id);
+
+        if (sportFolder is null)
+        {
+            return NotFound();
+        }
+
+        sportFolder.Name = updateDto.Name;
+        sportFolder.Description = updateDto.Description;
+        sportFolder.Color = updateDto.Color;
+        sportFolder.Icon = updateDto.Icon;
+        sportFolder.IsArchived = updateDto.IsArchived;
+        sportFolder.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new SportFolderDto
+        {
+            Id = sportFolder.Id,
+            Name = sportFolder.Name,
+            Description = sportFolder.Description,
+            Color = sportFolder.Color,
+            Icon = sportFolder.Icon,
+            IsArchived = sportFolder.IsArchived,
+            CreatedAt = sportFolder.CreatedAt,
+            UpdatedAt = sportFolder.UpdatedAt
+        });
+    }
 }
