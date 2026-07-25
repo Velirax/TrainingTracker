@@ -117,101 +117,63 @@ function SessionDialog({
             Selected: {start.toLocaleString()} – {end.toLocaleString()}
           </p>
 
-          <label htmlFor="dialog-session-sport">Sport</label>
-          <select
-            id="dialog-session-sport"
-            value={selectedSportFolderId}
-            onChange={(event) => setSelectedSportFolderId(event.target.value)}
-            required
-          >
-            <option value="">Choose a sport</option>
-            {sportFolders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.icon} {folder.name}
-              </option>
-            ))}
-          </select>
+          <div className="session-dialog-fields">
+            <div className="dialog-field dialog-field-wide">
+              <label htmlFor="dialog-session-sport">Sport</label>
+              <select id="dialog-session-sport" value={selectedSportFolderId} onChange={(event) => setSelectedSportFolderId(event.target.value)} required>
+                <option value="">Choose a sport</option>
+                {sportFolders.map((folder) => (
+                  <option key={folder.id} value={folder.id}>{folder.icon} {folder.name}</option>
+                ))}
+              </select>
+            </div>
 
-          <label htmlFor="dialog-session-title">Title</label>
-          <input
-            id="dialog-session-title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            required
-          />
+            <div className="dialog-field dialog-field-wide">
+              <label htmlFor="dialog-session-title">Title</label>
+              <input id="dialog-session-title" value={title} onChange={(event) => setTitle(event.target.value)} required />
+            </div>
 
-          <label htmlFor="dialog-session-date">Date</label>
-          <input
-            id="dialog-session-date"
-            type="date"
-            value={sessionDate}
-            onChange={(event) => setSessionDate(event.target.value)}
-            required
-          />
+            <div className="dialog-field">
+              <label htmlFor="dialog-session-date">Date</label>
+              <input id="dialog-session-date" type="date" value={sessionDate} onChange={(event) => setSessionDate(event.target.value)} required />
+            </div>
 
-          <label htmlFor="dialog-session-start-time">Start time</label>
-          <input
-            id="dialog-session-start-time"
-            type="time"
-            value={startTime}
-            onChange={(event) => setStartTime(event.target.value)}
-            required
-          />
+            <div className="dialog-field">
+              <label htmlFor="dialog-session-start-time">Start time</label>
+              <input id="dialog-session-start-time" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} required />
+            </div>
 
-          <label htmlFor="dialog-session-end-time">End time</label>
-          <input
-            id="dialog-session-end-time"
-            type="time"
-            value={endTime}
-            onChange={(event) => setEndTime(event.target.value)}
-            required
-          />
+            <div className="dialog-field">
+              <label htmlFor="dialog-session-end-time">End time</label>
+              <input id="dialog-session-end-time" type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} required />
+            </div>
 
-          <label htmlFor="dialog-session-type">Session type</label>
-          <select
-            id="dialog-session-type"
-            value={sessionType}
-            onChange={(event) => setSessionType(event.target.value)}
-          >
-            <option>Practice</option>
-            <option>Workout</option>
-            <option>Match</option>
-            <option>Casual play</option>
-            <option>Cardio</option>
-            <option>Recovery</option>
-            <option>Other</option>
-          </select>
+            <div className="dialog-field">
+              <label htmlFor="dialog-session-type">Session type</label>
+              <select id="dialog-session-type" value={sessionType} onChange={(event) => setSessionType(event.target.value)}>
+                <option>Practice</option><option>Workout</option><option>Match</option><option>Casual play</option><option>Cardio</option><option>Recovery</option><option>Other</option>
+              </select>
+            </div>
 
-          <label htmlFor="dialog-session-status">Status</label>
-          <select
-            id="dialog-session-status"
-            value={sessionStatus}
-            onChange={(event) => setSessionStatus(event.target.value)}
-          >
-            <option>Planned</option>
-            <option>Completed</option>
-          </select>
+            <div className="dialog-field">
+              <label htmlFor="dialog-session-status">Status</label>
+              <select id="dialog-session-status" value={sessionStatus} onChange={(event) => setSessionStatus(event.target.value)}>
+                <option>Planned</option><option>Completed</option>
+              </select>
+            </div>
 
-          <label htmlFor="dialog-session-rating">Rating (optional)</label>
-          <select
-            id="dialog-session-rating"
-            value={rating}
-            onChange={(event) => setRating(event.target.value)}
-          >
-            <option value="">No rating</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-          </select>
+            <div className="dialog-field">
+              <label htmlFor="dialog-session-rating">Rating</label>
+              <select id="dialog-session-rating" value={rating} onChange={(event) => setRating(event.target.value)}>
+                <option value="">No rating</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+              </select>
+            </div>
 
-          <label htmlFor="dialog-session-notes">Notes (optional)</label>
-          <textarea
-            id="dialog-session-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-          />
+            <div className="dialog-field dialog-field-wide">
+              <label htmlFor="dialog-session-notes">Notes (optional)</label>
+              <textarea id="dialog-session-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+            </div>
+          </div>
 
           <button type="submit" disabled={isSaving}>
             {isSaving ? 'Creating...' : 'Create session'}
