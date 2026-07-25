@@ -38,6 +38,31 @@ public class SportFoldersController : ControllerBase
         return Ok(sportFolders);
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<SportFolderDto>> GetById(int id)
+    {
+        var sportFolder = await _dbContext.SportFolders
+            .Where(folder => folder.Id == id)
+            .Select(folder => new SportFolderDto
+            {
+                Id = folder.Id,
+                Name = folder.Name,
+                Description = folder.Description,
+                Color = folder.Color,
+                Icon = folder.Icon,
+                IsArchived = folder.IsArchived,
+                CreatedAt = folder.CreatedAt,
+                UpdatedAt = folder.UpdatedAt
+            })
+            .FirstOrDefaultAsync();
+
+        if (sportFolder is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(sportFolder);
+    }
     [HttpPost]
     public async Task<ActionResult<SportFolderDto>> Create([FromBody] CreateSportFolderDto createDto)
     {
