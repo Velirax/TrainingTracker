@@ -1,3 +1,10 @@
+import { useState } from 'react';
+
+const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+});
+
 const dayFormatter = new Intl.DateTimeFormat('en-US', {
   weekday: 'short',
   day: 'numeric',
@@ -18,26 +25,52 @@ function getWeekDates(date: Date): Date[] {
 }
 
 function DashboardPage() {
-  const weekDates = getWeekDates(new Date());
-  return (
-    <main className="calendar-page">
-      <h1>Training calendar</h1>
-      <p>Plan your sessions and see your training week at a glance.</p>
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const weekDates = getWeekDates(selectedDate);
 
-      <section>
-        <h2>This week</h2>
+    function changeWeek(days: number) {
+    setSelectedDate((currentDate) => {
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(nextDate.getDate() + days);
+        return nextDate;
+    });
+    }
+    return (
+    <main className="calendar-page">
+        <h1>Training calendar</h1>
+        <p>Plan your sessions and see your training week at a glance.</p>
+
+        <section>
+        <div className="calendar-toolbar">
+        <h2>
+            {weekRangeFormatter.format(weekDates[0])} –{' '}
+            {weekRangeFormatter.format(weekDates[6])}
+        </h2>
+
+        <div>
+            <button type="button" onClick={() => changeWeek(-7)}>
+            Previous
+            </button>
+            <button type="button" onClick={() => setSelectedDate(new Date())}>
+            Today
+            </button>
+            <button type="button" onClick={() => changeWeek(7)}>
+            Next
+            </button>
+        </div>
+        </div>
 
         <div className="week-grid">
-          {weekDates.map((day) => (
+            {weekDates.map((day) => (
             <div className="day-column" key={day.getTime()}>
                 <h3>{dayFormatter.format(day)}</h3>
                 <p>No sessions planned</p>
             </div>
             ))}
         </div>
-      </section>
+        </section>
     </main>
-  );
+    );
 }
 
 export default DashboardPage;
