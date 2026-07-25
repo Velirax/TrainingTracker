@@ -7,3 +7,7 @@
 .vscode/
 *.user
 *.suo
+
+# Node.js dependencies and build output
+**/node_modules/
+**/dist/
