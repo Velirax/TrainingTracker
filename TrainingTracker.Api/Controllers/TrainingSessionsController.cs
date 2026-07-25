@@ -17,6 +17,51 @@ public class TrainingSessionsController : ControllerBase
         _dbContext = dbContext;
     }
 
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<TrainingSessionDto>>>
+        GetByDateRange(
+            [FromQuery] DateOnly startDate,
+            [FromQuery] DateOnly endDate)
+    {
+        if (endDate < startDate)
+        {
+            return BadRequest(new
+            {
+                message = "End date must be on or after start date."
+            });
+        }
+
+        var sessions = await _dbContext.TrainingSessions
+            .AsNoTracking()
+            .Where(session =>
+                session.SessionDate >= startDate &&
+                session.SessionDate <= endDate)
+            .OrderBy(session => session.SessionDate)
+            .ThenBy(session => session.StartTime)
+            .Select(session => new TrainingSessionDto
+            {
+                Id = session.Id,
+                SportFolderId = session.SportFolderId,
+                SportFolderName = session.SportFolder.Name,
+                SportFolderColor = session.SportFolder.Color,
+                SportFolderIcon = session.SportFolder.Icon,
+                Title = session.Title,
+                SessionDate = session.SessionDate,
+                StartTime = session.StartTime,
+                EndTime = session.EndTime,
+                DurationMinutes = session.DurationMinutes,
+                SessionType = session.SessionType,
+                Status = session.Status,
+                Rating = session.Rating,
+                Notes = session.Notes,
+                CreatedAt = session.CreatedAt,
+                UpdatedAt = session.UpdatedAt
+            })
+            .ToListAsync();
+
+        return Ok(sessions);
+    }
     [HttpPost]
     public async Task<ActionResult<TrainingSessionDto>> Create(
         [FromBody] CreateTrainingSessionDto createDto)
