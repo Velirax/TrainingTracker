@@ -11,4 +11,16 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<SportFolder> SportFolders { get; set; }
+    public DbSet<TrainingSession> TrainingSessions { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<TrainingSession>()
+            .HasOne(session => session.SportFolder)
+            .WithMany(folder => folder.TrainingSessions)
+            .HasForeignKey(session => session.SportFolderId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
 }

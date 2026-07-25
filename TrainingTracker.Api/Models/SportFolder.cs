@@ -19,4 +19,7 @@ public class SportFolder
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<TrainingSession> TrainingSessions { get; set; }
+    = new List<TrainingSession>();
 }
