@@ -112,13 +112,18 @@ function DashboardPage() {
                     <p>No sessions planned</p>
                 ) : (
                     sessionsForDay.map((session) => (
-                    <p
+                    <div
+                        className="session-card"
                         key={session.id}
-                        style={{ color: session.sportFolderColor }}
-                    >
-                        {session.startTime.slice(0, 5)} {session.sportFolderIcon}{' '}
-                        {session.title}
-                    </p>
+                        style={{ borderLeftColor: session.sportFolderColor }}
+                        >
+                        <strong>
+                            {session.startTime.slice(0, 5)} {session.title}
+                        </strong>
+                        <span>
+                            {session.sportFolderIcon} {session.sportFolderName}
+                        </span>
+                    </div>
                     ))
                 )}
                 </div>
