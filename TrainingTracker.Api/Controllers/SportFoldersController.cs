@@ -128,4 +128,20 @@ public class SportFoldersController : ControllerBase
             UpdatedAt = sportFolder.UpdatedAt
         });
     }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var sportFolder = await _dbContext.SportFolders.FindAsync(id);
+
+        if (sportFolder is null)
+        {
+            return NotFound();
+        }
+
+        _dbContext.SportFolders.Remove(sportFolder);
+        await _dbContext.SaveChangesAsync();
+
+        return NoContent();
+    }
 }
