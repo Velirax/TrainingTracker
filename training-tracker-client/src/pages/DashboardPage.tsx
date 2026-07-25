@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getTrainingSessions } from '../services/trainingSessionService';
 import type { TrainingSession } from '../types/trainingSession';
-
+import TrainingCalendar from '../components/TrainingCalendar';
 const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
 });
 
-const dayFormatter = new Intl.DateTimeFormat('en-US', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-});
 
 function getWeekDates(date: Date): Date[] {
   const startOfWeek = new Date(date);
@@ -62,6 +57,7 @@ function DashboardPage() {
         loadTrainingSessions();
         }, [selectedDate]);
 
+
     function changeWeek(days: number) {
     setSelectedDate((currentDate) => {
         const nextDate = new Date(currentDate);
@@ -73,7 +69,6 @@ function DashboardPage() {
     <main className="calendar-page">
         <h1>Training calendar</h1>
         <p>Plan your sessions and see your training week at a glance.</p>
-
         <section>
         <div className="calendar-toolbar">
         <h2>
@@ -94,42 +89,17 @@ function DashboardPage() {
         </div>
         </div>
 
-        <div className="week-grid">
-            {weekDates.map((day) => {
-            const sessionsForDay = sessions.filter(
-                (session) => session.sessionDate === formatDateForApi(day),
-            );
-
-            return (
-                <div className="day-column" key={day.getTime()}>
-                <h3>{dayFormatter.format(day)}</h3>
-
-                {isLoading ? (
-                    <p>Loading...</p>
-                ) : error ? (
-                    <p role="alert">{error}</p>
-                ) : sessionsForDay.length === 0 ? (
-                    <p>No sessions planned</p>
-                ) : (
-                    sessionsForDay.map((session) => (
-                    <div
-                        className="session-card"
-                        key={session.id}
-                        style={{ borderLeftColor: session.sportFolderColor }}
-                        >
-                        <strong>
-                            {session.startTime.slice(0, 5)} {session.title}
-                        </strong>
-                        <span>
-                            {session.sportFolderIcon} {session.sportFolderName}
-                        </span>
-                    </div>
-                    ))
-                )}
-                </div>
-            );
-            })}
-        </div>
+        {isLoading ? (
+            <p>Loading sessions...</p>
+        ) : error ? (
+            <p role="alert">{error}</p>
+        ) : (
+            <TrainingCalendar
+                key={formatDateForApi(selectedDate)}
+                initialDate={selectedDate}
+                sessions={sessions}
+            />
+        )}
         </section>
     </main>
     );

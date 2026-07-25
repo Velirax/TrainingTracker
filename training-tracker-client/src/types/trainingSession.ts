@@ -16,3 +16,15 @@ export interface TrainingSession {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface CreateTrainingSessionRequest {
+  sportFolderId: number;
+  title: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  sessionType: string;
+  status: string;
+  rating: number | null;
+  notes: string | null;
+}

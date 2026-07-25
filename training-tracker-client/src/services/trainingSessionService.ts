@@ -1,4 +1,7 @@
-import type { TrainingSession } from '../types/trainingSession';
+import type {
+  CreateTrainingSessionRequest,
+  TrainingSession,
+} from '../types/trainingSession';
 
 const apiBaseUrl = 'http://localhost:5205/api';
 
@@ -20,4 +23,22 @@ export async function getTrainingSessions(
   }
 
   return response.json() as Promise<TrainingSession[]>;
+}
+
+export async function createTrainingSession(
+  request: CreateTrainingSessionRequest,
+): Promise<TrainingSession> {
+  const response = await fetch(`${apiBaseUrl}/training-sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error('Could not create the training session.');
+  }
+
+  return response.json() as Promise<TrainingSession>;
 }

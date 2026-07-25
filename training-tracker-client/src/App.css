@@ -34,7 +34,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select  {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -156,4 +157,24 @@ li {
   margin-top: 2px;
   color: var(--text);
   font-size: 12px;
+}
+
+.calendar-event-content {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.calendar-event-content strong,
+.calendar-event-content span {
+  display: block;
+}
+
+.calendar-event-content strong {
+  font-size: 12px;
+}
+
+.calendar-event-content span {
+  margin-top: 2px;
+  font-weight: 600;
 }
