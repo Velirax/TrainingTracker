@@ -1,4 +1,6 @@
-import FullCalendar from '@fullcalendar/react';
+import FullCalendar, {
+  type DateSelectInfo,
+} from '@fullcalendar/react';
 import interactionPlugin from '@fullcalendar/react/interaction';
 import themePlugin from '@fullcalendar/react/themes/monarch';
 import timeGridPlugin from '@fullcalendar/react/timegrid';
@@ -10,11 +12,13 @@ import '@fullcalendar/react/themes/monarch/palettes/purple.css';
 interface TrainingCalendarProps {
   initialDate: Date;
   sessions: TrainingSession[];
+  onTimeRangeSelect: (start: Date, end: Date) => void;
 }
 
 function TrainingCalendar({
   initialDate,
   sessions,
+  onTimeRangeSelect,
 }: TrainingCalendarProps) {
   const events = sessions.map((session) => ({
     id: String(session.id),
@@ -44,6 +48,9 @@ function TrainingCalendar({
       height="auto"
       slotMinTime="07:00:00"
       slotMaxTime="24:00:00"
+      select={(selectionInfo: DateSelectInfo) => {
+        onTimeRangeSelect(selectionInfo.start, selectionInfo.end);
+    }}
     />
   );
 }

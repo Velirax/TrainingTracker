@@ -6,7 +6,7 @@ const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
 });
-
+import SessionDialog from '../components/SessionDialog';
 
 function getWeekDates(date: Date): Date[] {
   const startOfWeek = new Date(date);
@@ -27,13 +27,19 @@ function formatDateForApi(date: Date): string {
 
   return `${year}-${month}-${day}`;
 }
-
+interface SelectedTimeRange {
+  start: Date;
+  end: Date;
+}
 function DashboardPage() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const weekDates = getWeekDates(selectedDate);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
+    const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
+
 
     useEffect(() => {
         async function loadTrainingSessions() {
@@ -59,11 +65,16 @@ function DashboardPage() {
 
 
     function changeWeek(days: number) {
-    setSelectedDate((currentDate) => {
-        const nextDate = new Date(currentDate);
-        nextDate.setDate(nextDate.getDate() + days);
-        return nextDate;
-    });
+        setSelectedDate((currentDate) => {
+            const nextDate = new Date(currentDate);
+            nextDate.setDate(nextDate.getDate() + days);
+            return nextDate;
+        });
+    }
+
+    function handleTimeRangeSelect(start: Date, end: Date) {
+    setSelectedTimeRange({ start, end });
+    setIsSessionDialogOpen(false);
     }
     return (
     <main className="calendar-page">
@@ -93,13 +104,50 @@ function DashboardPage() {
             <p>Loading sessions...</p>
         ) : error ? (
             <p role="alert">{error}</p>
-        ) : (
-            <TrainingCalendar
+          ) : (
+            <>
+              <TrainingCalendar
                 key={formatDateForApi(selectedDate)}
                 initialDate={selectedDate}
                 sessions={sessions}
-            />
-        )}
+                onTimeRangeSelect={handleTimeRangeSelect}
+              />
+                {selectedTimeRange && !isSessionDialogOpen && (
+                <div className="selected-range-actions">
+                    <p>
+                    {selectedTimeRange.start.toLocaleString()} –{' '}
+                    {selectedTimeRange.end.toLocaleString()}
+                    </p>
+
+                    <button
+                    type="button"
+                    onClick={() => setIsSessionDialogOpen(true)}
+                    >
+                    Create session
+                    </button>
+                </div>
+                )}
+
+                {selectedTimeRange && isSessionDialogOpen && (
+                <SessionDialog
+                    start={selectedTimeRange.start}
+                    end={selectedTimeRange.end}
+                    onClose={() => {
+                    setIsSessionDialogOpen(false);
+                    setSelectedTimeRange(null);
+                    }}
+                    onCreated={(createdSession) => {
+                    setSessions((currentSessions) => [
+                        ...currentSessions,
+                        createdSession,
+                    ]);
+                    setIsSessionDialogOpen(false);
+                    setSelectedTimeRange(null);
+                    }}
+                />
+                )}
+            </>
+          )}
         </section>
     </main>
     );
