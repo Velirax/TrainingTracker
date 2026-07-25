@@ -8,3 +8,10 @@ export interface SportFolder {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface CreateSportFolderRequest {
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string | null;
+}
