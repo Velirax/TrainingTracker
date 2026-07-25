@@ -85,3 +85,50 @@ li {
   background: var(--accent-bg);
   font-weight: 600;
 }
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: 360px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.day-column {
+  min-width: 110px;
+  padding: 12px 8px;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.day-column:first-child {
+  border-left: 0;
+}
+
+.day-column h3 {
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-h);
+  font-size: 14px;
+  text-align: center;
+}
+
+.day-column p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  .week-grid {
+    grid-template-columns: repeat(7, 110px);
+  }
+}
+
+.calendar-page {
+  width: 100%;
+  max-width: none;
+}
