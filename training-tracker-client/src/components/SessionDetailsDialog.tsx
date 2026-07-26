@@ -4,9 +4,10 @@ interface SessionDetailsDialogProps {
   session: TrainingSession;
   onClose: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
-function SessionDetailsDialog({ session, onClose, onEdit }: SessionDetailsDialogProps) {
+function SessionDetailsDialog({ session, onClose, onEdit, onDelete }: SessionDetailsDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section
@@ -20,9 +21,13 @@ function SessionDetailsDialog({ session, onClose, onEdit }: SessionDetailsDialog
           <button type="button" onClick={onEdit}>
             Edit
           </button>
+          <button type="button" onClick={onDelete}>
+            Delete
+          </button>
           <button aria-label="Close session details" type="button" onClick={onClose}>
             Close
           </button>
+
         </div>
 
         <dl className="session-details">

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getTrainingSessions } from '../services/trainingSessionService';
+import {
+  deleteTrainingSession,
+  getTrainingSessions,
+} from '../services/trainingSessionService';
 import type { TrainingSession } from '../types/trainingSession';
 import TrainingCalendar from '../components/TrainingCalendar';
 import SessionDetailsDialog from '../components/SessionDetailsDialog';
@@ -83,13 +86,35 @@ function DashboardPage() {
     }
 
     function handleSessionClick(sessionId: number) {
-    const session = sessions.find((currentSession) => currentSession.id === sessionId);
+      const session = sessions.find((currentSession) => currentSession.id === sessionId);
 
-    if (session) {
-        setSelectedTimeRange(null);
-        setIsSessionDialogOpen(false);
-        setSelectedSession(session);
+      if (session) {
+          setSelectedTimeRange(null);
+          setIsSessionDialogOpen(false);
+          setSelectedSession(session);
+      }
     }
+    async function handleSessionDelete(session: TrainingSession) {
+      const shouldDelete = window.confirm(
+        `Delete "${session.title}"? This cannot be undone.`,
+      );
+
+      if (!shouldDelete) {
+        return;
+      }
+
+      try {
+        await deleteTrainingSession(session.id);
+
+        setSessions((currentSessions) =>
+          currentSessions.filter(
+            (currentSession) => currentSession.id !== session.id,
+          ),
+        );
+        setSelectedSession(null);
+      } catch {
+        setError('Could not delete the training session.');
+      }
     }
     return (
     <main className="calendar-page">
@@ -201,6 +226,7 @@ function DashboardPage() {
                       setEditingSession(selectedSession);
                       setSelectedSession(null);
                     }}
+                    onDelete={() => handleSessionDelete(selectedSession)}
                   />
                 )}
             </>
