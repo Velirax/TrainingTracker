@@ -80,9 +80,14 @@ function DashboardPage() {
     }
 
     function handleTimeRangeSelect(start: Date, end: Date) {
-    setSelectedTimeRange({ start, end });
-    setIsSessionDialogOpen(false);
-    setSelectedSession(null);
+      setSelectedTimeRange({ start, end });
+      setIsSessionDialogOpen(false);
+      setSelectedSession(null);
+    }
+
+    function handleTimeRangeClear() {
+      setSelectedTimeRange(null);
+      setIsSessionDialogOpen(false);
     }
 
     function handleSessionClick(sessionId: number) {
@@ -151,6 +156,7 @@ function DashboardPage() {
                 initialDate={selectedDate}
                 sessions={sessions}
                 onTimeRangeSelect={handleTimeRangeSelect}
+                onTimeRangeClear={handleTimeRangeClear}
                 onSessionClick={handleSessionClick}
               />
                 {selectedTimeRange && !isSessionDialogOpen && (

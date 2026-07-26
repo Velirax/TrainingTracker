@@ -13,6 +13,7 @@ interface TrainingCalendarProps {
   initialDate: Date;
   sessions: TrainingSession[];
   onTimeRangeSelect: (start: Date, end: Date) => void;
+  onTimeRangeClear: () => void;
   onSessionClick: (sessionId: number) => void;
 }
 
@@ -20,6 +21,7 @@ function TrainingCalendar({
   initialDate,
   sessions,
   onTimeRangeSelect,
+  onTimeRangeClear,
   onSessionClick,
 }: TrainingCalendarProps) {
   const events = sessions.map((session) => ({
@@ -53,6 +55,7 @@ function TrainingCalendar({
       select={(selectionInfo: DateSelectInfo) => {
         onTimeRangeSelect(selectionInfo.start, selectionInfo.end);
       }}
+      unselect={onTimeRangeClear}
       eventClick={(clickInfo) => {
         onSessionClick(Number(clickInfo.event.id));
       }}
