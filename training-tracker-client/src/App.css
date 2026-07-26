@@ -179,6 +179,69 @@ li {
   font-weight: 600;
 }
 
+.month-calendar {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.month-calendar-weekdays,
+.month-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.month-calendar-weekdays div {
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-h);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.month-calendar-day {
+  min-height: 116px;
+  padding: 8px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.month-calendar-day:nth-child(7n) {
+  border-right: 0;
+}
+
+.month-calendar-day-outside {
+  color: var(--text);
+  opacity: 0.55;
+}
+
+.month-calendar-today {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--accent);
+}
+
+.month-calendar-session {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dialog-backdrop {
   position: fixed;
   inset: 0;

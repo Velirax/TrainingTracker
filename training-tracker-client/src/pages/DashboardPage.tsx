@@ -5,12 +5,18 @@ import {
 } from '../services/trainingSessionService';
 import type { TrainingSession } from '../types/trainingSession';
 import TrainingCalendar from '../components/TrainingCalendar';
+import MonthCalendar from '../components/MonthCalendar';
 import SessionDetailsDialog from '../components/SessionDetailsDialog';
 import SessionDialog from '../components/SessionDialog';
 
 const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
+});
+
+const monthFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  year: 'numeric',
 });
 
 function getWeekDates(date: Date): Date[] {
@@ -25,6 +31,14 @@ function getWeekDates(date: Date): Date[] {
     return day;
   });
 }
+
+function getMonthDates(date: Date): [Date, Date] {
+  return [
+    new Date(date.getFullYear(), date.getMonth(), 1),
+    new Date(date.getFullYear(), date.getMonth() + 1, 0),
+  ];
+}
+
 function formatDateForApi(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -38,6 +52,9 @@ interface SelectedTimeRange {
 }
 function DashboardPage() {
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [calendarView, setCalendarView] = useState<
+      'timeGridWeek' | 'dayGridMonth'
+    >('timeGridWeek');
     const weekDates = getWeekDates(selectedDate);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -54,9 +71,13 @@ function DashboardPage() {
             setError(null);
 
             try {
+            const [startDate, endDate] = calendarView === 'timeGridWeek'
+                ? [weekDates[0], weekDates[6]]
+                : getMonthDates(selectedDate);
+
             const loadedSessions = await getTrainingSessions(
-                formatDateForApi(weekDates[0]),
-                formatDateForApi(weekDates[6]),
+                formatDateForApi(startDate),
+                formatDateForApi(endDate),
             );
 
             setSessions(loadedSessions);
@@ -68,13 +89,19 @@ function DashboardPage() {
         }
 
         loadTrainingSessions();
-        }, [selectedDate]);
+        }, [selectedDate, calendarView]);
 
 
-    function changeWeek(days: number) {
+    function changeCalendarPeriod(direction: number) {
         setSelectedDate((currentDate) => {
             const nextDate = new Date(currentDate);
-            nextDate.setDate(nextDate.getDate() + days);
+
+            if (calendarView === 'timeGridWeek') {
+              nextDate.setDate(nextDate.getDate() + direction * 7);
+            } else {
+              nextDate.setMonth(nextDate.getMonth() + direction);
+            }
+
             return nextDate;
         });
     }
@@ -86,8 +113,8 @@ function DashboardPage() {
     }
 
     function handleTimeRangeClear() {
-      setSelectedTimeRange(null);
-      setIsSessionDialogOpen(false);
+    setSelectedTimeRange(null);
+    setIsSessionDialogOpen(false);
     }
 
     function handleSessionClick(sessionId: number) {
@@ -128,19 +155,39 @@ function DashboardPage() {
         <section>
         <div className="calendar-toolbar">
         <h2>
+            {calendarView === 'dayGridMonth'
+              ? monthFormatter.format(selectedDate)
+              : (
+                <>
             {weekRangeFormatter.format(weekDates[0])} –{' '}
             {weekRangeFormatter.format(weekDates[6])}
+                </>
+              )}
         </h2>
 
         <div>
-            <button type="button" onClick={() => changeWeek(-7)}>
+            <button type="button" onClick={() => changeCalendarPeriod(-1)}>
             Previous
             </button>
             <button type="button" onClick={() => setSelectedDate(new Date())}>
             Today
             </button>
-            <button type="button" onClick={() => changeWeek(7)}>
+            <button type="button" onClick={() => changeCalendarPeriod(1)}>
             Next
+            </button>
+            <button
+              aria-pressed={calendarView === 'timeGridWeek'}
+              type="button"
+              onClick={() => setCalendarView('timeGridWeek')}
+            >
+              Week
+            </button>
+            <button
+              aria-pressed={calendarView === 'dayGridMonth'}
+              type="button"
+              onClick={() => setCalendarView('dayGridMonth')}
+            >
+              Month
             </button>
         </div>
         </div>
@@ -151,14 +198,22 @@ function DashboardPage() {
             <p role="alert">{error}</p>
           ) : (
             <>
-              <TrainingCalendar
-                key={`${formatDateForApi(selectedDate)}-${sessions.map((session) => `${session.id}-${session.updatedAt}`).join(',')}`}
-                initialDate={selectedDate}
-                sessions={sessions}
-                onTimeRangeSelect={handleTimeRangeSelect}
-                onTimeRangeClear={handleTimeRangeClear}
-                onSessionClick={handleSessionClick}
-              />
+              {calendarView === 'dayGridMonth' ? (
+                <MonthCalendar
+                  selectedDate={selectedDate}
+                  sessions={sessions}
+                  onSessionClick={handleSessionClick}
+                />
+              ) : (
+                <TrainingCalendar
+                  key={`${formatDateForApi(selectedDate)}-${sessions.map((session) => `${session.id}-${session.updatedAt}`).join(',')}`}
+                  initialDate={selectedDate}
+                  sessions={sessions}
+                  onTimeRangeSelect={handleTimeRangeSelect}
+                  onTimeRangeClear={handleTimeRangeClear}
+                  onSessionClick={handleSessionClick}
+                />
+              )}
                 {selectedTimeRange && !isSessionDialogOpen && (
                 <div className="selected-range-actions">
                     <p>
