@@ -211,6 +211,37 @@ li {
   font-size: 22px;
 }
 
+.session-details-dialog {
+  width: min(100%, 440px);
+}
+
+.session-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0 0;
+}
+
+.session-details div {
+  display: grid;
+  gap: 4px;
+}
+
+.session-details dt {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.session-details dd {
+  margin: 0;
+  color: var(--text-h);
+}
+
+.session-details-notes {
+  grid-column: 1 / -1;
+}
+
 .session-dialog form {
   gap: 12px;
 }

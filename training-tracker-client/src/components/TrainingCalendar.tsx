@@ -13,12 +13,14 @@ interface TrainingCalendarProps {
   initialDate: Date;
   sessions: TrainingSession[];
   onTimeRangeSelect: (start: Date, end: Date) => void;
+  onSessionClick: (sessionId: number) => void;
 }
 
 function TrainingCalendar({
   initialDate,
   sessions,
   onTimeRangeSelect,
+  onSessionClick,
 }: TrainingCalendarProps) {
   const events = sessions.map((session) => ({
     id: String(session.id),
@@ -33,6 +35,7 @@ function TrainingCalendar({
       plugins={[themePlugin, timeGridPlugin, interactionPlugin]}
       initialView="timeGridWeek"
       initialDate={initialDate}
+      firstDay={1}
       events={events}
       headerToolbar={false}
       eventContent={(eventInfo) => (
@@ -49,7 +52,10 @@ function TrainingCalendar({
       slotMaxTime="24:00:00"
       select={(selectionInfo: DateSelectInfo) => {
         onTimeRangeSelect(selectionInfo.start, selectionInfo.end);
-    }}
+      }}
+      eventClick={(clickInfo) => {
+        onSessionClick(Number(clickInfo.event.id));
+      }}
     />
   );
 }

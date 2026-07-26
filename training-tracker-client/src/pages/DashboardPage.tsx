@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { getTrainingSessions } from '../services/trainingSessionService';
 import type { TrainingSession } from '../types/trainingSession';
 import TrainingCalendar from '../components/TrainingCalendar';
+import SessionDetailsDialog from '../components/SessionDetailsDialog';
+import SessionDialog from '../components/SessionDialog';
+
 const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
 });
-import SessionDialog from '../components/SessionDialog';
 
 function getWeekDates(date: Date): Date[] {
   const startOfWeek = new Date(date);
@@ -39,6 +41,7 @@ function DashboardPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
     const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
+    const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
 
 
     useEffect(() => {
@@ -75,6 +78,17 @@ function DashboardPage() {
     function handleTimeRangeSelect(start: Date, end: Date) {
     setSelectedTimeRange({ start, end });
     setIsSessionDialogOpen(false);
+    setSelectedSession(null);
+    }
+
+    function handleSessionClick(sessionId: number) {
+    const session = sessions.find((currentSession) => currentSession.id === sessionId);
+
+    if (session) {
+        setSelectedTimeRange(null);
+        setIsSessionDialogOpen(false);
+        setSelectedSession(session);
+    }
     }
     return (
     <main className="calendar-page">
@@ -111,6 +125,7 @@ function DashboardPage() {
                 initialDate={selectedDate}
                 sessions={sessions}
                 onTimeRangeSelect={handleTimeRangeSelect}
+                onSessionClick={handleSessionClick}
               />
                 {selectedTimeRange && !isSessionDialogOpen && (
                 <div className="selected-range-actions">
@@ -145,6 +160,13 @@ function DashboardPage() {
                     setSelectedTimeRange(null);
                     }}
                 />
+                )}
+
+                {selectedSession && (
+                  <SessionDetailsDialog
+                    session={selectedSession}
+                    onClose={() => setSelectedSession(null)}
+                  />
                 )}
             </>
           )}
