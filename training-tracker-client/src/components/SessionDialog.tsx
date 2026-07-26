@@ -1,10 +1,12 @@
 import { type SubmitEvent, useEffect, useState } from 'react';
+import { getExercises } from '../services/exerciseService';
 import { getSportFolders } from '../services/sportFolderService';
 import {
   createTrainingSession,
   updateTrainingSession,
 } from '../services/trainingSessionService';
 import type { SportFolder } from '../types/sportFolder';
+import type { Exercise } from '../types/exercise';
 import type { TrainingSession } from '../types/trainingSession';
 
 interface SessionDialogProps {
@@ -64,6 +66,14 @@ function SessionDialog({
     sessionToEdit?.rating ? String(sessionToEdit.rating) : '',
   );
   const [notes, setNotes] = useState(sessionToEdit?.notes ?? '');
+  const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
+  const [selectedExerciseId, setSelectedExerciseId] = useState('');
+  const [sessionExercises, setSessionExercises] = useState(
+    sessionToEdit?.exercises.map((exercise) => ({
+      exerciseId: exercise.exerciseId,
+      trackingValues: exercise.trackingValues,
+    })) ?? [],
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isEditing = sessionToEdit !== undefined;
@@ -81,6 +91,60 @@ function SessionDialog({
 
     loadSportFolders();
   }, []);
+
+  useEffect(() => {
+    async function loadExercises() {
+      if (!selectedSportFolderId) {
+        setAvailableExercises([]);
+        return;
+      }
+
+      try {
+        setAvailableExercises(await getExercises(Number(selectedSportFolderId)));
+      } catch {
+        setFormError('Could not load exercises for this sport.');
+      }
+    }
+
+    loadExercises();
+  }, [selectedSportFolderId]);
+
+  function handleSportChange(sportFolderId: string) {
+    setSelectedSportFolderId(sportFolderId);
+    setSelectedExerciseId('');
+    setSessionExercises([]);
+  }
+
+  function addExercise() {
+    if (!selectedExerciseId) {
+      return;
+    }
+
+    const exerciseId = Number(selectedExerciseId);
+
+    if (sessionExercises.some((exercise) => exercise.exerciseId === exerciseId)) {
+      return;
+    }
+
+    setSessionExercises((currentExercises) => [
+      ...currentExercises,
+      { exerciseId, trackingValues: {} },
+    ]);
+    setSelectedExerciseId('');
+  }
+
+  function updateExerciseValue(exerciseId: number, field: string, value: string) {
+    setSessionExercises((currentExercises) => currentExercises.map((exercise) =>
+      exercise.exerciseId === exerciseId
+        ? {
+          ...exercise,
+          trackingValues: {
+            ...exercise.trackingValues,
+            [field]: value,
+          },
+        }
+        : exercise));
+  }
 
   async function handleSubmit(
     event: SubmitEvent<HTMLFormElement>,
@@ -106,6 +170,7 @@ function SessionDialog({
         status: sessionStatus,
         rating: rating ? Number(rating) : null,
         notes: notes || null,
+        exercises: sessionExercises,
       };
 
       const savedSession = sessionToEdit
@@ -157,7 +222,7 @@ function SessionDialog({
           <div className="session-dialog-fields">
             <div className="dialog-field dialog-field-wide">
               <label htmlFor="dialog-session-sport">Sport</label>
-              <select id="dialog-session-sport" value={selectedSportFolderId} onChange={(event) => setSelectedSportFolderId(event.target.value)} required>
+              <select id="dialog-session-sport" value={selectedSportFolderId} onChange={(event) => handleSportChange(event.target.value)} required>
                 <option value="">Choose a sport</option>
                 {sportFolders.map((folder) => (
                   <option key={folder.id} value={folder.id}>{folder.icon} {folder.name}</option>
@@ -220,6 +285,69 @@ function SessionDialog({
             <div className="dialog-field dialog-field-wide">
               <label htmlFor="dialog-session-notes">Notes (optional)</label>
               <textarea id="dialog-session-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+            </div>
+
+            <div className="dialog-field dialog-field-wide session-exercises-field">
+              <label htmlFor="dialog-session-exercise">Exercises performed</label>
+              <div className="session-exercise-picker">
+                <select
+                  id="dialog-session-exercise"
+                  disabled={!selectedSportFolderId || availableExercises.length === 0}
+                  value={selectedExerciseId}
+                  onChange={(event) => setSelectedExerciseId(event.target.value)}
+                >
+                  <option value="">Choose an exercise</option>
+                  {availableExercises.map((exercise) => (
+                    <option key={exercise.id} value={exercise.id}>
+                      {exercise.name}
+                    </option>
+                  ))}
+                </select>
+                <button disabled={!selectedExerciseId} type="button" onClick={addExercise}>
+                  Add
+                </button>
+              </div>
+
+              {sessionExercises.map((sessionExercise) => {
+                const exercise = availableExercises.find((item) =>
+                  item.id === sessionExercise.exerciseId);
+
+                if (!exercise) {
+                  return null;
+                }
+
+                return (
+                  <div className="session-exercise-entry" key={exercise.id}>
+                    <div className="session-exercise-entry-header">
+                      <strong>{exercise.name}</strong>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => setSessionExercises((currentExercises) =>
+                          currentExercises.filter((item) => item.exerciseId !== exercise.id))}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="session-exercise-values">
+                      {exercise.trackingFields.map((field) => (
+                        <label key={field}>
+                          {field}
+                          <input
+                            type={field === 'Notes' ? 'text' : 'number'}
+                            value={sessionExercise.trackingValues[field] ?? ''}
+                            onChange={(event) => updateExerciseValue(
+                              exercise.id,
+                              field,
+                              event.target.value,
+                            )}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

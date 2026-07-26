@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using TrainingTracker.Api.Data;
 using TrainingTracker.Api.Dtos;
 using TrainingTracker.Api.Models;
@@ -60,6 +61,7 @@ public class TrainingSessionsController : ControllerBase
             })
             .ToListAsync();
 
+        await AttachExerciseDetails(sessions);
         return Ok(sessions);
     }
 
@@ -96,6 +98,7 @@ public class TrainingSessionsController : ControllerBase
             })
             .ToListAsync();
 
+        await AttachExerciseDetails(sessions);
         return Ok(sessions);
     }
 
@@ -137,6 +140,7 @@ public class TrainingSessionsController : ControllerBase
             })
             .ToListAsync();
 
+        await AttachExerciseDetails(sessions);
         return Ok(sessions);
     }
 
@@ -172,6 +176,15 @@ public class TrainingSessionsController : ControllerBase
             });
         }
 
+        var exerciseEntryResult = await BuildExerciseEntries(
+            sportFolder.Id,
+            createDto.Exercises);
+
+        if (exerciseEntryResult.Error is not null)
+        {
+            return BadRequest(new { message = exerciseEntryResult.Error });
+        }
+
         var duration = createDto.EndTime - createDto.StartTime;
 
         var trainingSession = new TrainingSession
@@ -188,6 +201,7 @@ public class TrainingSessionsController : ControllerBase
             Status = createDto.Status,
             Rating = createDto.Rating,
             Notes = createDto.Notes,
+            Exercises = exerciseEntryResult.Entries,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -211,6 +225,7 @@ public class TrainingSessionsController : ControllerBase
             Status = trainingSession.Status,
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
+            Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
         });
@@ -240,6 +255,8 @@ public class TrainingSessionsController : ControllerBase
 
         var trainingSession = await _dbContext.TrainingSessions
             .Include(session => session.SportFolder)
+            .Include(session => session.Exercises)
+                .ThenInclude(exercise => exercise.Exercise)
             .FirstOrDefaultAsync(session => session.Id == id);
 
         if (trainingSession is null)
@@ -258,6 +275,22 @@ public class TrainingSessionsController : ControllerBase
             });
         }
 
+        List<TrainingSessionExercise>? exerciseEntries = null;
+
+        if (updateDto.Exercises is not null)
+        {
+            var exerciseEntryResult = await BuildExerciseEntries(
+                sportFolder.Id,
+                updateDto.Exercises);
+
+            if (exerciseEntryResult.Error is not null)
+            {
+                return BadRequest(new { message = exerciseEntryResult.Error });
+            }
+
+            exerciseEntries = exerciseEntryResult.Entries;
+        }
+
         var duration = updateDto.EndTime - updateDto.StartTime;
 
         trainingSession.SportFolderId = sportFolder.Id;
@@ -271,6 +304,12 @@ public class TrainingSessionsController : ControllerBase
         trainingSession.Rating = updateDto.Rating;
         trainingSession.Notes = updateDto.Notes;
         trainingSession.UpdatedAt = DateTime.UtcNow;
+
+        if (exerciseEntries is not null)
+        {
+            _dbContext.TrainingSessionExercises.RemoveRange(trainingSession.Exercises);
+            trainingSession.Exercises = exerciseEntries;
+        }
 
         await _dbContext.SaveChangesAsync();
 
@@ -290,6 +329,7 @@ public class TrainingSessionsController : ControllerBase
             Status = trainingSession.Status,
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
+            Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
         });
@@ -310,5 +350,115 @@ public class TrainingSessionsController : ControllerBase
         await _dbContext.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    private async Task<(List<TrainingSessionExercise> Entries, string? Error)>
+        BuildExerciseEntries(
+            int sportFolderId,
+            List<CreateTrainingSessionExerciseDto> requestedExercises)
+    {
+        var exerciseIds = requestedExercises
+            .Select(item => item.ExerciseId)
+            .ToList();
+
+        if (exerciseIds.Count != exerciseIds.Distinct().Count())
+        {
+            return ([], "An exercise can be added only once to a session.");
+        }
+
+        if (exerciseIds.Count == 0)
+        {
+            return ([], null);
+        }
+
+        var exercises = await _dbContext.Exercises
+            .Include(exercise => exercise.ExerciseSportFolders)
+            .Where(exercise => exerciseIds.Contains(exercise.Id))
+            .ToListAsync();
+
+        if (exercises.Count != exerciseIds.Count)
+        {
+            return ([], "One or more selected exercises do not exist.");
+        }
+
+        var exerciseById = exercises.ToDictionary(exercise => exercise.Id);
+        var entries = new List<TrainingSessionExercise>();
+
+        foreach (var requestedExercise in requestedExercises)
+        {
+            var exercise = exerciseById[requestedExercise.ExerciseId];
+
+            if (!exercise.ExerciseSportFolders.Any(link =>
+                link.SportFolderId == sportFolderId))
+            {
+                return ([], "Each selected exercise must belong to the session's sport.");
+            }
+
+            var allowedFields = DeserializeTrackingFields(exercise.TrackingFieldsJson);
+            var unsupportedField = requestedExercise.TrackingValues.Keys
+                .FirstOrDefault(field => !allowedFields.Contains(field));
+
+            if (unsupportedField is not null)
+            {
+                return ([], $"{unsupportedField} is not enabled for {exercise.Name}.");
+            }
+
+            entries.Add(new TrainingSessionExercise
+            {
+                Exercise = exercise,
+                TrackingValuesJson = JsonSerializer.Serialize(
+                    requestedExercise.TrackingValues)
+            });
+        }
+
+        return (entries, null);
+    }
+
+    private static List<TrainingSessionExerciseDto> ToExerciseDtos(
+        IEnumerable<TrainingSessionExercise> entries)
+    {
+        return entries.Select(entry => new TrainingSessionExerciseDto
+        {
+            ExerciseId = entry.ExerciseId == 0 ? entry.Exercise.Id : entry.ExerciseId,
+            ExerciseName = entry.Exercise.Name,
+            TrackingValues = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                entry.TrackingValuesJson) ?? []
+        }).ToList();
+    }
+
+    private async Task AttachExerciseDetails(List<TrainingSessionDto> sessions)
+    {
+        if (sessions.Count == 0)
+        {
+            return;
+        }
+
+        var sessionIds = sessions.Select(session => session.Id).ToList();
+        var entries = await _dbContext.TrainingSessionExercises
+            .AsNoTracking()
+            .Include(entry => entry.Exercise)
+            .Where(entry => sessionIds.Contains(entry.TrainingSessionId))
+            .ToListAsync();
+
+        var entriesBySessionId = entries
+            .GroupBy(entry => entry.TrainingSessionId)
+            .ToDictionary(
+                group => group.Key,
+                group => ToExerciseDtos(group));
+
+        foreach (var session in sessions)
+        {
+            session.Exercises = entriesBySessionId.GetValueOrDefault(session.Id, []);
+        }
+    }
+
+    private static List<string> DeserializeTrackingFields(string trackingFieldsJson)
+    {
+        if (string.IsNullOrWhiteSpace(trackingFieldsJson))
+        {
+            return [];
+        }
+
+        return JsonSerializer.Deserialize<List<string>>(trackingFieldsJson) ?? [];
     }
 }

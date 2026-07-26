@@ -1,6 +1,7 @@
 import FullCalendar, {
   type DateSelectInfo,
 } from '@fullcalendar/react';
+import { useRef, useState } from 'react';
 import interactionPlugin from '@fullcalendar/react/interaction';
 import themePlugin from '@fullcalendar/react/themes/monarch';
 import timeGridPlugin from '@fullcalendar/react/timegrid';
@@ -19,6 +20,27 @@ interface TrainingCalendarProps {
   view?: 'timeGridWeek' | 'dayGridMonth';
 }
 
+interface ExerciseTooltip {
+  content: string;
+  left: number;
+  top: number;
+}
+
+function formatExerciseTooltip(session: TrainingSession): string {
+  if (session.exercises.length === 0) {
+    return 'No exercises logged.';
+  }
+
+  return session.exercises.map((exercise) => {
+    const values = Object.entries(exercise.trackingValues)
+      .filter(([, value]) => value)
+      .map(([field, value]) => `${field}: ${value}`)
+      .join(', ');
+
+    return values ? `${exercise.exerciseName} — ${values}` : exercise.exerciseName;
+  }).join('\n');
+}
+
 function TrainingCalendar({
   initialDate,
   sessions,
@@ -27,6 +49,9 @@ function TrainingCalendar({
   onSessionClick,
   view = 'timeGridWeek'
 }: TrainingCalendarProps) {
+  const calendarWrapperRef = useRef<HTMLDivElement>(null);
+  const [exerciseTooltip, setExerciseTooltip] = useState<ExerciseTooltip | null>(null);
+
   const events = sessions.map((session) => {
     if (view === 'dayGridMonth') {
       return {
@@ -35,6 +60,7 @@ function TrainingCalendar({
         start: session.sessionDate,
         allDay: true,
         color: session.sportFolderColor,
+        extendedProps: { exerciseTooltip: formatExerciseTooltip(session) },
       };
     }
 
@@ -44,11 +70,13 @@ function TrainingCalendar({
       start: `${session.sessionDate}T${session.startTime}`,
       end: `${session.sessionDate}T${session.endTime}`,
       color: session.sportFolderColor,
+      extendedProps: { exerciseTooltip: formatExerciseTooltip(session) },
     };
   });
 
   return (
-    <FullCalendar
+    <div ref={calendarWrapperRef} className="training-calendar-wrapper">
+      <FullCalendar
       plugins={[themePlugin, timeGridPlugin, interactionPlugin, dayGridPlugin]}
       initialView={view}
       initialDate={initialDate}
@@ -64,6 +92,21 @@ function TrainingCalendar({
           <span>{eventInfo.event.title}</span>
         </div>
       )}
+      eventMouseEnter={(hoverInfo) => {
+        const wrapperBounds = calendarWrapperRef.current?.getBoundingClientRect();
+        const eventBounds = hoverInfo.el.getBoundingClientRect();
+
+        if (!wrapperBounds) {
+          return;
+        }
+
+        setExerciseTooltip({
+          content: String(hoverInfo.event.extendedProps.exerciseTooltip),
+          left: eventBounds.left - wrapperBounds.left,
+          top: eventBounds.bottom - wrapperBounds.top + 7,
+        });
+      }}
+      eventMouseLeave={() => setExerciseTooltip(null)}
       selectable={view === 'timeGridWeek'}
       selectMirror
       nowIndicator
@@ -79,6 +122,16 @@ function TrainingCalendar({
         onSessionClick(Number(clickInfo.event.id));
       }}
     />
+      {exerciseTooltip && (
+        <div
+          className="calendar-exercise-tooltip"
+          style={{ left: exerciseTooltip.left, top: exerciseTooltip.top }}
+        >
+          <span className="calendar-tooltip-label">Exercises</span>
+          <span>{exerciseTooltip.content}</span>
+        </div>
+      )}
+    </div>
   );
 }
 

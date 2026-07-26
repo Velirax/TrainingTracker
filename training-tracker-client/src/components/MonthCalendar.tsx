@@ -36,6 +36,21 @@ function getMonthGridDates(selectedDate: Date): Date[] {
   });
 }
 
+function formatExerciseTooltip(session: TrainingSession): string {
+  if (session.exercises.length === 0) {
+    return 'No exercises logged.';
+  }
+
+  return session.exercises.map((exercise) => {
+    const values = Object.entries(exercise.trackingValues)
+      .filter(([, value]) => value)
+      .map(([field, value]) => `${field}: ${value}`)
+      .join(', ');
+
+    return values ? `${exercise.exerciseName} — ${values}` : exercise.exerciseName;
+  }).join('\n');
+}
+
 function MonthCalendar({
   selectedDate,
   sessions,
@@ -76,6 +91,7 @@ function MonthCalendar({
                   className="month-calendar-session"
                   style={{ backgroundColor: session.sportFolderColor }}
                   type="button"
+                  data-exercise-tooltip={formatExerciseTooltip(session)}
                   onClick={() => onSessionClick(session.id)}
                 >
                   {session.sportFolderIcon} {session.title}

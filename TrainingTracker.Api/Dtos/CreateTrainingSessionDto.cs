@@ -30,4 +30,6 @@ public class CreateTrainingSessionDto
 
     [StringLength(2000)]
     public string? Notes { get; set; }
+
+    public List<CreateTrainingSessionExerciseDto> Exercises { get; set; } = [];
 }

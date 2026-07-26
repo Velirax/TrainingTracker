@@ -30,6 +30,8 @@ public class TrainingSessionDto
 
     public string? Notes { get; set; }
 
+    public List<TrainingSessionExerciseDto> Exercises { get; set; } = [];
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

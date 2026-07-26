@@ -1,5 +1,5 @@
 main {
-  width: min(100%, 760px);
+  width: min(100%, 1080px);
   margin: 0 auto;
   padding: 48px 24px;
   box-sizing: border-box;
@@ -32,10 +32,11 @@ main {
 
 main > h1 {
   margin: 0;
+  line-height: 1.2;
 }
 
 main > p {
-  margin: 8px 0 32px;
+  margin: 12px 0 32px;
 }
 
 section {
@@ -112,6 +113,9 @@ li {
 }
 
 .sport-folder-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   padding: 0;
   color: var(--text-h);
@@ -122,6 +126,22 @@ li {
 .sport-folder-button:hover {
   color: var(--accent-border);
   background: transparent;
+}
+
+.sport-folder-button small {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sport-catalog-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 600px) {
+  .sport-catalog-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .starter-sport-list {
@@ -194,6 +214,124 @@ li {
   font-size: 13px;
 }
 
+.exercise-create-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 16px 0 20px;
+}
+
+.exercise-create-form label,
+.exercise-create-form input {
+  grid-column: span 1;
+}
+
+.exercise-create-form textarea,
+.exercise-create-form button,
+.exercise-create-form .tracking-fields {
+  grid-column: 1 / -1;
+}
+
+.exercise-list li {
+  padding: 10px;
+}
+
+.exercise-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.exercise-list strong,
+.exercise-list span {
+  display: block;
+}
+
+.exercise-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exercise-list .built-in-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--accent-border);
+  background: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.exercise-list .exercise-category-label {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--text-h);
+  background: var(--border);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.exercise-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.exercise-pagination span {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.exercise-list span,
+.exercise-list p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.tracking-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.tracking-fields legend {
+  padding: 0 4px;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.tracking-fields label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tracking-fields input {
+  width: auto;
+  padding: 0;
+}
+
+.exercise-field-editor {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.exercise-field-editor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .week-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -233,6 +371,21 @@ li {
 @media (max-width: 800px) {
   .week-grid {
     grid-template-columns: repeat(7, 110px);
+  }
+}
+
+@media (max-width: 600px) {
+  .exercise-list {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-create-form label,
+  .exercise-create-form input {
+    grid-column: 1 / -1;
   }
 }
 
@@ -301,8 +454,49 @@ li {
   font-weight: 500;
 }
 
+.upcoming-sessions {
+  margin-top: 0;
+}
+
+.upcoming-sessions h2 {
+  margin-top: 0;
+}
+
+.upcoming-sessions ul {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.upcoming-sessions li {
+  padding: 0;
+}
+
+.upcoming-sessions button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  text-align: left;
+}
+
+.upcoming-sessions button:hover {
+  background: var(--border);
+}
+
+.upcoming-sessions button small {
+  color: var(--text);
+  font-weight: 500;
+}
+
 @media (max-width: 720px) {
   .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .upcoming-sessions ul {
     grid-template-columns: 1fr;
   }
 }
@@ -333,6 +527,7 @@ li {
 }
 
 .calendar-event-content {
+  position: relative;
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.25;
@@ -346,6 +541,109 @@ li {
 .calendar-event-content strong {
   font-size: 12px;
 }
+
+.month-calendar-session[data-exercise-tooltip],
+.upcoming-sessions button[data-exercise-tooltip] {
+  position: relative;
+}
+
+.fc-event,
+.fc-event .fc-event-main,
+.fc-timegrid-event-harness {
+  overflow: visible !important;
+}
+
+/* Keep a hovered event, including its tooltip, above the calendar grid lines. */
+.fc-timegrid-event-harness:has(.fc-event:hover) {
+  z-index: 50 !important;
+}
+
+.fc-timegrid-event {
+  border-color: transparent !important;
+}
+
+.month-calendar-session[data-exercise-tooltip]:hover,
+.upcoming-sessions button[data-exercise-tooltip]:hover {
+  z-index: 20;
+}
+
+.month-calendar-session[data-exercise-tooltip]:hover::after,
+.upcoming-sessions button[data-exercise-tooltip]:hover::after {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: white;
+  background: #1f2937;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  content: attr(data-exercise-tooltip);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+  transform: translateX(-50%);
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+.calendar-exercise-tooltip {
+  position: absolute;
+  z-index: 100;
+  min-width: 150px;
+  max-width: 240px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: white;
+  background: #25133f;
+  box-shadow: 0 8px 20px rgba(35, 15, 65, 0.3);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+.calendar-event-content {
+  position: relative;
+  z-index: 1;
+}
+
+.calendar-exercise-tooltip::before {
+  position: absolute;
+  top: -5px;
+  left: 14px;
+  width: 9px;
+  height: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  background: #25133f;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.calendar-exercise-tooltip span {
+  display: block;
+}
+
+.calendar-tooltip-label {
+  margin-bottom: 3px;
+  color: #d8b4fe;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.training-calendar-wrapper {
+  position: relative;
+}
+
 
 .calendar-event-content span {
   margin-top: 2px;
@@ -478,6 +776,35 @@ li {
   grid-column: 1 / -1;
 }
 
+.session-details-exercises {
+  margin: 20px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.session-details-exercises h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.session-details-exercises li {
+  padding: 8px;
+}
+
+.session-details-exercises strong,
+.session-details-exercises span {
+  display: block;
+}
+
+.session-details-exercises span {
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+}
+
 .session-review-dialog {
   width: min(100%, 640px);
 }
@@ -568,6 +895,42 @@ li {
 
 .session-dialog textarea {
   min-height: 56px;
+}
+
+.session-exercise-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.session-exercise-picker select {
+  flex: 1;
+}
+
+.session-exercise-entry {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.session-exercise-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.session-exercise-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.session-exercise-values label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
 }
 
 @media (max-width: 600px) {

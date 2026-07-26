@@ -88,6 +88,21 @@ function formatTrainingTime(totalMinutes: number): string {
   return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
 }
 
+function formatExerciseTooltip(session: TrainingSession): string {
+  if (session.exercises.length === 0) {
+    return 'No exercises logged.';
+  }
+
+  return session.exercises.map((exercise) => {
+    const values = Object.entries(exercise.trackingValues)
+      .filter(([, value]) => value)
+      .map(([field, value]) => `${field}: ${value}`)
+      .join(', ');
+
+    return values ? `${exercise.exerciseName} — ${values}` : exercise.exerciseName;
+  }).join('\n');
+}
+
 interface SelectedTimeRange {
   start: Date;
   end: Date;
@@ -99,6 +114,7 @@ function DashboardPage() {
     >('timeGridWeek');
     const weekDates = getWeekDates(selectedDate);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
+    const [upcomingSessionSource, setUpcomingSessionSource] = useState<TrainingSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
@@ -114,6 +130,17 @@ function DashboardPage() {
       (total, session) => total + session.durationMinutes,
       0,
     );
+    const now = new Date();
+    const upcomingSessions = upcomingSessionSource
+      .filter((session) => session.status === 'Planned')
+      .filter((session) => new Date(
+        `${session.sessionDate}T${session.startTime}`,
+      ) >= now)
+      .sort((first, second) =>
+        `${first.sessionDate}T${first.startTime}`.localeCompare(
+          `${second.sessionDate}T${second.startTime}`,
+        ))
+      .slice(0, 5);
 
 
     useEffect(() => {
@@ -141,6 +168,25 @@ function DashboardPage() {
 
         loadTrainingSessions();
         }, [selectedDate, calendarView]);
+
+    useEffect(() => {
+      async function loadUpcomingSessions() {
+        const today = new Date();
+        const oneYearFromToday = new Date(today);
+        oneYearFromToday.setFullYear(today.getFullYear() + 1);
+
+        try {
+          setUpcomingSessionSource(await getTrainingSessions(
+            formatDateForApi(today),
+            formatDateForApi(oneYearFromToday),
+          ));
+        } catch {
+          setError('Could not load upcoming sessions.');
+        }
+      }
+
+      loadUpcomingSessions();
+    }, []);
 
     useEffect(() => {
       async function loadSessionsNeedingReview() {
@@ -206,6 +252,11 @@ function DashboardPage() {
             (currentSession) => currentSession.id !== session.id,
           ),
         );
+        setUpcomingSessionSource((currentSessions) =>
+          currentSessions.filter(
+            (currentSession) => currentSession.id !== session.id,
+          ),
+        );
         setSelectedSession(null);
       } catch {
         setError('Could not delete the training session.');
@@ -259,6 +310,31 @@ function DashboardPage() {
               <p>{sessions.length} total sessions</p>
             </article>
           </div>
+        </section>
+        <section className="upcoming-sessions">
+          <h2>All future sessions</h2>
+          {upcomingSessions.length === 0 ? (
+            <p>No planned sessions in this period.</p>
+          ) : (
+            <ul>
+              {upcomingSessions.map((session) => (
+                <li key={session.id}>
+                  <button
+                    type="button"
+                    data-exercise-tooltip={formatExerciseTooltip(session)}
+                    onClick={() => handleSessionClick(session.id)}
+                  >
+                    <span style={{ color: session.sportFolderColor }}>
+                      {session.sportFolderIcon} {session.title}
+                    </span>
+                    <small>
+                      {session.sessionDate} · {session.startTime.slice(0, 5)}
+                    </small>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section>
         <div className="calendar-toolbar">
@@ -351,6 +427,10 @@ function DashboardPage() {
                         ...currentSessions,
                         createdSession,
                     ]);
+                    setUpcomingSessionSource((currentSessions) => [
+                      ...currentSessions,
+                      createdSession,
+                    ]);
                     setIsSessionDialogOpen(false);
                     setSelectedTimeRange(null);
                     }}
@@ -382,6 +462,18 @@ function DashboardPage() {
                             : session,
                         ),
                       );
+                      setUpcomingSessionSource((currentSessions) => {
+                        const hasSession = currentSessions.some(
+                          (session) => session.id === updatedSession.id,
+                        );
+
+                        return hasSession
+                          ? currentSessions.map((session) =>
+                            session.id === updatedSession.id
+                              ? updatedSession
+                              : session)
+                          : [...currentSessions, updatedSession];
+                      });
                       setEditingSession(null);
                     }}
                   />
@@ -410,6 +502,13 @@ function DashboardPage() {
                         ),
                       );
                       setSessions((currentSessions) =>
+                        currentSessions.map((session) =>
+                          session.id === updatedSession.id
+                            ? updatedSession
+                            : session,
+                        ),
+                      );
+                      setUpcomingSessionSource((currentSessions) =>
                         currentSessions.map((session) =>
                           session.id === updatedSession.id
                             ? updatedSession

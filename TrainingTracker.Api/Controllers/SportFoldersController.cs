@@ -20,6 +20,8 @@ public class SportFoldersController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SportFolderDto>>> GetAll()
     {
+        await BuiltInSportSeeder.SeedAsync(_dbContext);
+
         var sportFolders = await _dbContext.SportFolders
             .OrderBy(folder => folder.Name)
             .Select(folder => new SportFolderDto
@@ -30,6 +32,7 @@ public class SportFoldersController : ControllerBase
                 Color = folder.Color,
                 Icon = folder.Icon,
                 IsArchived = folder.IsArchived,
+                SessionCount = folder.TrainingSessions.Count,
                 CreatedAt = folder.CreatedAt,
                 UpdatedAt = folder.UpdatedAt
             })
@@ -51,6 +54,7 @@ public class SportFoldersController : ControllerBase
                 Color = folder.Color,
                 Icon = folder.Icon,
                 IsArchived = folder.IsArchived,
+                SessionCount = folder.TrainingSessions.Count,
                 CreatedAt = folder.CreatedAt,
                 UpdatedAt = folder.UpdatedAt
             })
@@ -90,6 +94,7 @@ public class SportFoldersController : ControllerBase
             Color = sportFolder.Color,
             Icon = sportFolder.Icon,
             IsArchived = sportFolder.IsArchived,
+            SessionCount = 0,
             CreatedAt = sportFolder.CreatedAt,
             UpdatedAt = sportFolder.UpdatedAt
         };
@@ -124,6 +129,8 @@ public class SportFoldersController : ControllerBase
             Color = sportFolder.Color,
             Icon = sportFolder.Icon,
             IsArchived = sportFolder.IsArchived,
+            SessionCount = await _dbContext.TrainingSessions.CountAsync(
+                session => session.SportFolderId == sportFolder.Id),
             CreatedAt = sportFolder.CreatedAt,
             UpdatedAt = sportFolder.UpdatedAt
         });

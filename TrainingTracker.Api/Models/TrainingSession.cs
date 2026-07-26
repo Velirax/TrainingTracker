@@ -28,6 +28,9 @@ public class TrainingSession
 
     public string? Notes { get; set; }
 
+    public ICollection<TrainingSessionExercise> Exercises { get; set; }
+        = new List<TrainingSessionExercise>();
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

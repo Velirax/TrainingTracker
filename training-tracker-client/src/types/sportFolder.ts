@@ -5,6 +5,7 @@ export interface SportFolder {
   color: string;
   icon: string | null;
   isArchived: boolean;
+  sessionCount: number;
   createdAt: string;
   updatedAt: string;
 }

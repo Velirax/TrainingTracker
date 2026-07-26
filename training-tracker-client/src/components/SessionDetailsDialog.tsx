@@ -38,6 +38,27 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete }: SessionDet
           {session.rating && <div><dt>Rating</dt><dd>{session.rating}/5</dd></div>}
           {session.notes && <div className="session-details-notes"><dt>Notes</dt><dd>{session.notes}</dd></div>}
         </dl>
+
+        {session.exercises.length > 0 && (
+          <section className="session-details-exercises">
+            <h3>Exercises performed</h3>
+            <ul>
+              {session.exercises.map((exercise) => (
+                <li key={exercise.exerciseId}>
+                  <strong>{exercise.exerciseName}</strong>
+                  {Object.keys(exercise.trackingValues).length > 0 && (
+                    <span>
+                      {Object.entries(exercise.trackingValues)
+                        .filter(([, value]) => value)
+                        .map(([field, value]) => `${field}: ${value}`)
+                        .join(' · ')}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </section>
     </div>
   );

@@ -13,8 +13,15 @@ export interface TrainingSession {
   status: string;
   rating: number | null;
   notes: string | null;
+  exercises: TrainingSessionExercise[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TrainingSessionExercise {
+  exerciseId: number;
+  exerciseName: string;
+  trackingValues: Record<string, string>;
 }
 
 export interface CreateTrainingSessionRequest {
@@ -27,4 +34,10 @@ export interface CreateTrainingSessionRequest {
   status: string;
   rating: number | null;
   notes: string | null;
+  exercises?: CreateTrainingSessionExerciseRequest[];
+}
+
+export interface CreateTrainingSessionExerciseRequest {
+  exerciseId: number;
+  trackingValues: Record<string, string>;
 }

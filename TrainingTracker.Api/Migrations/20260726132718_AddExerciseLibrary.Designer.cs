@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TrainingTracker.Api.Data;
 
@@ -11,9 +12,11 @@ using TrainingTracker.Api.Data;
 namespace TrainingTracker.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260726132718_AddExerciseLibrary")]
+    partial class AddExerciseLibrary
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -46,10 +49,6 @@ namespace TrainingTracker.Api.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TrackingFieldsJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -178,33 +177,6 @@ namespace TrainingTracker.Api.Migrations
                     b.ToTable("TrainingSessions");
                 });
 
-            modelBuilder.Entity("TrainingTracker.Api.Models.TrainingSessionExercise", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ExerciseId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TrackingValuesJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TrainingSessionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExerciseId");
-
-                    b.HasIndex("TrainingSessionId");
-
-                    b.ToTable("TrainingSessionExercises");
-                });
-
             modelBuilder.Entity("TrainingTracker.Api.Models.ExerciseSportFolder", b =>
                 {
                     b.HasOne("TrainingTracker.Api.Models.Exercise", "Exercise")
@@ -235,30 +207,9 @@ namespace TrainingTracker.Api.Migrations
                     b.Navigation("SportFolder");
                 });
 
-            modelBuilder.Entity("TrainingTracker.Api.Models.TrainingSessionExercise", b =>
-                {
-                    b.HasOne("TrainingTracker.Api.Models.Exercise", "Exercise")
-                        .WithMany("TrainingSessionExercises")
-                        .HasForeignKey("ExerciseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("TrainingTracker.Api.Models.TrainingSession", "TrainingSession")
-                        .WithMany("Exercises")
-                        .HasForeignKey("TrainingSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Exercise");
-
-                    b.Navigation("TrainingSession");
-                });
-
             modelBuilder.Entity("TrainingTracker.Api.Models.Exercise", b =>
                 {
                     b.Navigation("ExerciseSportFolders");
-
-                    b.Navigation("TrainingSessionExercises");
                 });
 
             modelBuilder.Entity("TrainingTracker.Api.Models.SportFolder", b =>
@@ -266,11 +217,6 @@ namespace TrainingTracker.Api.Migrations
                     b.Navigation("ExerciseSportFolders");
 
                     b.Navigation("TrainingSessions");
-                });
-
-            modelBuilder.Entity("TrainingTracker.Api.Models.TrainingSession", b =>
-                {
-                    b.Navigation("Exercises");
                 });
 #pragma warning restore 612, 618
         }

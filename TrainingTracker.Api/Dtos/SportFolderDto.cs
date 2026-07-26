@@ -14,6 +14,8 @@ public class SportFolderDto
 
     public bool IsArchived { get; set; }
 
+    public int SessionCount { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
