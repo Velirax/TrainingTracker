@@ -172,7 +172,18 @@ function SessionDialog({
 
             <div className="dialog-field">
               <label htmlFor="dialog-session-date">Date</label>
-              <input id="dialog-session-date" type="date" value={sessionDate} onChange={(event) => setSessionDate(event.target.value)} required />
+              <input
+                id="dialog-session-date"
+                type="date"
+                value={sessionDate}
+                min={
+                  sessionStatus === 'Planned'
+                    ? formatDateForInput(new Date())
+                    : undefined
+                }
+                onChange={(event) => setSessionDate(event.target.value)}
+                required
+              />
             </div>
 
             <div className="dialog-field">

@@ -71,3 +71,13 @@ export async function deleteTrainingSession(id: number): Promise<void> {
     throw new Error('Could not delete the training session.');
   }
 }
+
+export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
+  const response = await fetch(`${apiBaseUrl}/training-sessions/needs-review`);
+
+  if (!response.ok) {
+    throw new Error('Could not load sessions needing review.');
+  }
+
+  return response.json() as Promise<TrainingSession[]>;
+}

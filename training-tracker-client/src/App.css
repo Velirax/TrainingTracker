@@ -134,6 +134,72 @@ li {
   max-width: none;
 }
 
+.dashboard-overview {
+  margin: 24px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dashboard-overview h2 {
+  margin: 0 0 12px;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-stat-card {
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-stat-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.dashboard-stat-card > strong {
+  display: block;
+  margin: 6px 0 14px;
+  color: var(--text-h);
+  font-size: 24px;
+}
+
+.dashboard-stat-card > p {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.dashboard-sport-list {
+  gap: 6px;
+}
+
+.dashboard-sport-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0;
+  background: transparent;
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
 .session-card {
   margin-top: 8px;
   padding: 8px;
@@ -303,6 +369,63 @@ li {
 
 .session-details-notes {
   grid-column: 1 / -1;
+}
+
+.session-review-dialog {
+  width: min(100%, 640px);
+}
+
+.session-review-intro {
+  margin: 16px 0;
+  color: var(--text);
+}
+
+.session-review-list {
+  display: grid;
+  gap: 10px;
+}
+
+.session-review-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.session-review-item strong,
+.session-review-item span {
+  display: block;
+}
+
+.session-review-item span {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.session-review-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.secondary-button {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.secondary-button:hover {
+  background: var(--border);
+}
+
+@media (max-width: 600px) {
+  .session-review-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 .session-dialog form {

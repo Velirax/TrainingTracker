@@ -62,6 +62,43 @@ public class TrainingSessionsController : ControllerBase
 
         return Ok(sessions);
     }
+
+    [HttpGet("needs-review")]
+    public async Task<ActionResult<IEnumerable<TrainingSessionDto>>> GetNeedsReview()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        var sessions = await _dbContext.TrainingSessions
+            .AsNoTracking()
+            .Where(session =>
+                session.Status == "Planned" &&
+                session.SessionDate < today)
+            .OrderBy(session => session.SessionDate)
+            .ThenBy(session => session.StartTime)
+            .Select(session => new TrainingSessionDto
+            {
+                Id = session.Id,
+                SportFolderId = session.SportFolderId,
+                SportFolderName = session.SportFolder.Name,
+                SportFolderColor = session.SportFolder.Color,
+                SportFolderIcon = session.SportFolder.Icon,
+                Title = session.Title,
+                SessionDate = session.SessionDate,
+                StartTime = session.StartTime,
+                EndTime = session.EndTime,
+                DurationMinutes = session.DurationMinutes,
+                SessionType = session.SessionType,
+                Status = session.Status,
+                Rating = session.Rating,
+                Notes = session.Notes,
+                CreatedAt = session.CreatedAt,
+                UpdatedAt = session.UpdatedAt
+            })
+            .ToListAsync();
+
+        return Ok(sessions);
+    }
+
     [HttpPost]
     public async Task<ActionResult<TrainingSessionDto>> Create(
         [FromBody] CreateTrainingSessionDto createDto)
@@ -71,6 +108,15 @@ public class TrainingSessionsController : ControllerBase
             return BadRequest(new
             {
                 message = "End time must be later than start time."
+            });
+        }
+
+        if (createDto.Status == "Planned" &&
+            createDto.SessionDate < DateOnly.FromDateTime(DateTime.Today))
+        {
+            return BadRequest(new
+            {
+                message = "Planned sessions must be scheduled for today or a future date."
             });
         }
 
@@ -139,6 +185,15 @@ public class TrainingSessionsController : ControllerBase
             return BadRequest(new
             {
                 message = "End time must be later than start time."
+            });
+        }
+
+        if (updateDto.Status == "Planned" &&
+            updateDto.SessionDate < DateOnly.FromDateTime(DateTime.Today))
+        {
+            return BadRequest(new
+            {
+                message = "Planned sessions must be scheduled for today or a future date."
             });
         }
 
