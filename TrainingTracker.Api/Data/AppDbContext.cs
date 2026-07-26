@@ -15,10 +15,13 @@ public class AppDbContext : DbContext
     public DbSet<TrainingSessionExercise> TrainingSessionExercises { get; set; }
     public DbSet<Exercise> Exercises { get; set; }
     public DbSet<ExerciseSportFolder> ExerciseSportFolders { get; set; }
+    public DbSet<AppUser> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<AppUser>().HasIndex(user => user.Email).IsUnique();
 
         modelBuilder.Entity<TrainingSession>()
             .HasOne(session => session.SportFolder)

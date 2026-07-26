@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using TrainingTracker.Api.Data;
 using TrainingTracker.Api.Dtos;
 using TrainingTracker.Api.Models;
@@ -8,6 +10,7 @@ using TrainingTracker.Api.Models;
 namespace TrainingTracker.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/exercises")]
 public class ExercisesController : ControllerBase
 {
@@ -18,6 +21,8 @@ public class ExercisesController : ControllerBase
         _dbContext = dbContext;
     }
 
+    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ExerciseDto>>> GetAll(
         [FromQuery] int? sportFolderId)
@@ -27,9 +32,9 @@ public class ExercisesController : ControllerBase
         var exercises = await _dbContext.Exercises
             .AsNoTracking()
             .Include(exercise => exercise.ExerciseSportFolders)
-            .Where(exercise => !sportFolderId.HasValue ||
+            .Where(exercise => (exercise.UserId == CurrentUserId || exercise.UserId == "system") && (!sportFolderId.HasValue ||
                 exercise.ExerciseSportFolders.Any(link =>
-                    link.SportFolderId == sportFolderId.Value))
+                    link.SportFolderId == sportFolderId.Value)))
             .OrderBy(exercise => exercise.Name)
             .ToListAsync();
 
@@ -42,7 +47,7 @@ public class ExercisesController : ControllerBase
         var exercise = await _dbContext.Exercises
             .AsNoTracking()
             .Include(item => item.ExerciseSportFolders)
-            .Where(exercise => exercise.Id == id)
+            .Where(exercise => exercise.Id == id && (exercise.UserId == CurrentUserId || exercise.UserId == "system"))
             .FirstOrDefaultAsync();
 
         return exercise is null ? NotFound() : Ok(ToDto(exercise));
@@ -75,11 +80,10 @@ public class ExercisesController : ControllerBase
         var exercise = new Exercise
         {
             // Temporary until ASP.NET Core Identity is introduced.
-            UserId = "development-user",
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "development-user",
             Name = createDto.Name,
             Description = createDto.Description,
             Category = createDto.Category,
-            DefaultUnit = createDto.DefaultUnit,
             TrackingFieldsJson = JsonSerializer.Serialize(trackingFields),
             IsBuiltIn = false,
             CreatedAt = DateTime.UtcNow,
@@ -143,7 +147,6 @@ public class ExercisesController : ControllerBase
         exercise.Name = updateDto.Name;
         exercise.Description = updateDto.Description;
         exercise.Category = updateDto.Category;
-        exercise.DefaultUnit = updateDto.DefaultUnit;
         exercise.TrackingFieldsJson = JsonSerializer.Serialize(trackingFields);
         exercise.UpdatedAt = DateTime.UtcNow;
 
@@ -179,6 +182,17 @@ public class ExercisesController : ControllerBase
             });
         }
 
+        var hasSessionLogs = await _dbContext.TrainingSessionExercises
+            .AnyAsync(sessionExercise => sessionExercise.ExerciseId == id);
+
+        if (hasSessionLogs)
+        {
+            return BadRequest(new
+            {
+                message = "Exercises that have been used in sessions cannot be deleted."
+            });
+        }
+
         _dbContext.Exercises.Remove(exercise);
         await _dbContext.SaveChangesAsync();
 
@@ -206,7 +220,6 @@ public class ExercisesController : ControllerBase
             Name = exercise.Name,
             Description = exercise.Description,
             Category = exercise.Category,
-            DefaultUnit = exercise.DefaultUnit,
             TrackingFields = DeserializeTrackingFields(exercise.TrackingFieldsJson),
             IsBuiltIn = exercise.IsBuiltIn,
             SportFolderIds = exercise.ExerciseSportFolders

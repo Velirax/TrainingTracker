@@ -54,11 +54,17 @@ function SportFoldersPage() {
 
   return (
     <main>
-      <h1>Sports</h1>
-      <p>Choose any sport to view its sessions and exercise library.</p>
+      <header className="page-header">
+        <span className="page-kicker">Your training library</span>
+        <h1>Sports</h1>
+        <p>Explore sessions, exercises, and progress for every sport.</p>
+      </header>
 
-      <section>
-        <h2>Available sports</h2>
+      <section className="sport-catalog-section">
+        <div className="section-heading">
+          <div><span className="section-kicker">All sports</span><h2>Choose a sport</h2></div>
+          <span className="section-count">{activeSports.length} available</span>
+        </div>
 
         {activeSports.length === 0 ? (
           <p>No sports are available yet.</p>

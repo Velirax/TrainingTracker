@@ -50,7 +50,19 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete }: SessionDet
                     <span>
                       {Object.entries(exercise.trackingValues)
                         .filter(([, value]) => value)
-                        .map(([field, value]) => `${field}: ${value}`)
+                        .map(([field, value]) => {
+                          if (field === 'Duration') {
+                            return `${field}: ${value} min`;
+                          }
+
+                          if (field === 'Distance') {
+                            return `${field}: ${value} km`;
+                          }
+
+                          return field === 'Pace'
+                            ? `${field}: ${value} min/km`
+                            : `${field}: ${value}`;
+                        })
                         .join(' · ')}
                     </span>
                   )}

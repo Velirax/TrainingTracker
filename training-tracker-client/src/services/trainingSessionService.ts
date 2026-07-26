@@ -2,6 +2,7 @@ import type {
   CreateTrainingSessionRequest,
   TrainingSession,
 } from '../types/trainingSession';
+import { apiFetch } from './apiClient';
 
 const apiBaseUrl = 'http://localhost:5205/api';
 
@@ -14,7 +15,7 @@ export async function getTrainingSessions(
     endDate,
   });
 
-  const response = await fetch(
+  const response = await apiFetch(
     `${apiBaseUrl}/training-sessions?${query.toString()}`,
   );
 
@@ -28,7 +29,7 @@ export async function getTrainingSessions(
 export async function createTrainingSession(
   request: CreateTrainingSessionRequest,
 ): Promise<TrainingSession> {
-  const response = await fetch(`${apiBaseUrl}/training-sessions`, {
+  const response = await apiFetch(`${apiBaseUrl}/training-sessions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -47,7 +48,7 @@ export async function updateTrainingSession(
   id: number,
   request: CreateTrainingSessionRequest,
 ): Promise<TrainingSession> {
-  const response = await fetch(`${apiBaseUrl}/training-sessions/${id}`, {
+  const response = await apiFetch(`${apiBaseUrl}/training-sessions/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -63,7 +64,7 @@ export async function updateTrainingSession(
 }
 
 export async function deleteTrainingSession(id: number): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/training-sessions/${id}`, {
+  const response = await apiFetch(`${apiBaseUrl}/training-sessions/${id}`, {
     method: 'DELETE',
   });
 
@@ -73,7 +74,7 @@ export async function deleteTrainingSession(id: number): Promise<void> {
 }
 
 export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
-  const response = await fetch(`${apiBaseUrl}/training-sessions/needs-review`);
+  const response = await apiFetch(`${apiBaseUrl}/training-sessions/needs-review`);
 
   if (!response.ok) {
     throw new Error('Could not load sessions needing review.');
@@ -85,7 +86,7 @@ export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
 export async function getTrainingSessionsForSportFolder(
   sportFolderId: number,
 ): Promise<TrainingSession[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${apiBaseUrl}/training-sessions/sport-folders/${sportFolderId}`,
   );
 

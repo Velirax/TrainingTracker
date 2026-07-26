@@ -3,11 +3,12 @@ import type {
   SportFolder,
   UpdateSportFolderRequest,
 } from '../types/sportFolder';
+import { apiFetch } from './apiClient';
 
 const apiBaseUrl = 'http://localhost:5205/api';
 
 export async function getSportFolders(): Promise<SportFolder[]> {
-  const response = await fetch(`${apiBaseUrl}/sport-folders`);
+  const response = await apiFetch(`${apiBaseUrl}/sport-folders`);
 
   if (!response.ok) {
     throw new Error('Could not load sport folders.');
@@ -17,7 +18,7 @@ export async function getSportFolders(): Promise<SportFolder[]> {
 }
 
 export async function createSportFolder(request: CreateSportFolderRequest,): Promise<SportFolder> {
-  const response = await fetch(`${apiBaseUrl}/sport-folders`, {
+  const response = await apiFetch(`${apiBaseUrl}/sport-folders`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -36,7 +37,7 @@ export async function updateSportFolder(
   id: number,
   request: UpdateSportFolderRequest,
 ): Promise<SportFolder> {
-  const response = await fetch(`${apiBaseUrl}/sport-folders/${id}`, {
+  const response = await apiFetch(`${apiBaseUrl}/sport-folders/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

@@ -3,6 +3,7 @@ import type {
   Exercise,
   UpdateExerciseRequest,
 } from '../types/exercise';
+import { apiFetch } from './apiClient';
 
 const apiBaseUrl = 'http://localhost:5205/api';
 
@@ -11,7 +12,7 @@ export async function getExercises(sportFolderId?: number): Promise<Exercise[]> 
     ? ''
     : `?sportFolderId=${sportFolderId}`;
 
-  const response = await fetch(`${apiBaseUrl}/exercises${query}`);
+  const response = await apiFetch(`${apiBaseUrl}/exercises${query}`);
 
   if (!response.ok) {
     throw new Error('Could not load exercises.');
@@ -23,7 +24,7 @@ export async function getExercises(sportFolderId?: number): Promise<Exercise[]> 
 export async function createExercise(
   request: CreateExerciseRequest,
 ): Promise<Exercise> {
-  const response = await fetch(`${apiBaseUrl}/exercises`, {
+  const response = await apiFetch(`${apiBaseUrl}/exercises`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -42,7 +43,7 @@ export async function updateExercise(
   id: number,
   request: UpdateExerciseRequest,
 ): Promise<Exercise> {
-  const response = await fetch(`${apiBaseUrl}/exercises/${id}`, {
+  const response = await apiFetch(`${apiBaseUrl}/exercises/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -55,4 +56,14 @@ export async function updateExercise(
   }
 
   return response.json() as Promise<Exercise>;
+}
+
+export async function deleteExercise(id: number): Promise<void> {
+  const response = await apiFetch(`${apiBaseUrl}/exercises/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Could not delete the exercise.');
+  }
 }

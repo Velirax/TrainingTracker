@@ -1,6 +1,7 @@
 import { type SubmitEvent, useEffect, useState } from 'react';
 import {
   createExercise,
+  deleteExercise,
   getExercises,
   updateExercise,
 } from '../services/exerciseService';
@@ -30,6 +31,10 @@ const availableTrackingFields = [
 
 const exercisesPerPage = 6;
 
+type ChartTimeFrame = 'all' | '30' | '90' | '180' | '365';
+interface WorkoutTemplate { id: string; name: string; sportFolderId: number; exercises: { exerciseId: number; trackingValues: Record<string, string> }[]; }
+function workoutTemplateStorageKey() { return `training-tracker-workout-templates-${JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user?.id ?? 'guest'}`; }
+
 function formatDuration(durationMinutes: number): string {
   const hours = Math.floor(durationMinutes / 60);
   const minutes = durationMinutes % 60;
@@ -37,6 +42,63 @@ function formatDuration(durationMinutes: number): string {
   return hours > 0
     ? minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
     : `${minutes} min`;
+}
+
+function formatTrackingValues(values: Record<string, string>): string {
+  const entries = Object.entries(values)
+    .filter(([, value]) => value)
+    .map(([field, value]) => {
+      if (field === 'Duration') {
+        return `${field}: ${value} min`;
+      }
+
+      if (field === 'Distance') {
+        return `${field}: ${value} km`;
+      }
+
+      return field === 'Pace'
+        ? `${field}: ${value} min/km`
+        : `${field}: ${value}`;
+    });
+
+  return entries.length > 0 ? entries.join(' · ') : 'No values logged';
+}
+
+function parseTrackingValue(field: string, value: string): number | null {
+  if (field === 'Pace') {
+    const match = /^(\d+):(\d{1,2})$/.exec(value.trim());
+
+    if (!match || Number(match[2]) >= 60) {
+      return null;
+    }
+
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function formatMetricValue(field: string, value: number): string {
+  if (field === 'Pace') {
+    const minutes = Math.floor(value / 60);
+    const seconds = Math.round(value % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds} /km`;
+  }
+
+  if (field === 'Duration') {
+    return `${value} min`;
+  }
+
+  return field === 'Distance' ? `${value} km` : String(value);
+}
+
+function formatDateForComparison(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps) {
@@ -55,13 +117,25 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
   const [exerciseName, setExerciseName] = useState('');
   const [exerciseDescription, setExerciseDescription] = useState('');
   const [exerciseCategory, setExerciseCategory] = useState('');
-  const [exerciseDefaultUnit, setExerciseDefaultUnit] = useState('');
   const [trackingFields, setTrackingFields] = useState<string[]>([]);
   const [isCreatingExercise, setIsCreatingExercise] = useState(false);
-  const [configuringExerciseId, setConfiguringExerciseId] = useState<number | null>(null);
   const [configuredTrackingFields, setConfiguredTrackingFields] = useState<string[]>([]);
-  const [isSavingExerciseFields, setIsSavingExerciseFields] = useState(false);
+  const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
+  const [editingExerciseName, setEditingExerciseName] = useState('');
+  const [editingExerciseDescription, setEditingExerciseDescription] = useState('');
+  const [editingExerciseCategory, setEditingExerciseCategory] = useState('');
+  const [isSavingExercise, setIsSavingExercise] = useState(false);
   const [exercisePage, setExercisePage] = useState(1);
+  const [progressExerciseId, setProgressExerciseId] = useState<number | null>(null);
+  const [selectedLogMetric, setSelectedLogMetric] = useState('');
+  const [chartTimeFrame, setChartTimeFrame] = useState<ChartTimeFrame>('all');
+  const [activeTab, setActiveTab] = useState<'overview' | 'exercises' | 'templates' | 'sessions'>('overview');
+  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+  const [templateName, setTemplateName] = useState('');
+  const [templateExerciseIds, setTemplateExerciseIds] = useState<number[]>([]);
+  const [sessionSearchTerm, setSessionSearchTerm] = useState('');
+  const [sessionStatusFilter, setSessionStatusFilter] = useState('');
+  const [sessionTypeFilter, setSessionTypeFilter] = useState('');
 
   useEffect(() => {
     async function loadSessions() {
@@ -76,6 +150,12 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
 
     loadSessions();
   }, [folder.id]);
+
+  useEffect(() => {
+    try { setTemplates(JSON.parse(localStorage.getItem(workoutTemplateStorageKey()) ?? '[]') as WorkoutTemplate[]); } catch { setTemplates([]); }
+  }, []);
+
+  function saveTemplates(nextTemplates: WorkoutTemplate[]) { setTemplates(nextTemplates); localStorage.setItem(workoutTemplateStorageKey(), JSON.stringify(nextTemplates)); }
 
   useEffect(() => {
     async function loadExercises() {
@@ -93,6 +173,9 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
 
   useEffect(() => {
     setExercisePage(1);
+    setProgressExerciseId(null);
+    setSelectedLogMetric('');
+    setChartTimeFrame('all');
   }, [folder.id]);
 
   async function handleSave(event: SubmitEvent<HTMLFormElement>) {
@@ -126,7 +209,6 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
         name: exerciseName,
         description: exerciseDescription || null,
         category: exerciseCategory || null,
-        defaultUnit: exerciseDefaultUnit || null,
         trackingFields,
         sportFolderIds: [folder.id],
       });
@@ -138,7 +220,6 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
       setExerciseName('');
       setExerciseDescription('');
       setExerciseCategory('');
-      setExerciseDefaultUnit('');
       setTrackingFields([]);
       setExercisePage(1);
     } catch {
@@ -166,29 +247,126 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
     );
   }
 
-  async function handleSaveExerciseFields(exercise: Exercise) {
-    setIsSavingExerciseFields(true);
+  function startEditingExercise(exercise: Exercise) {
+    setEditingExerciseId(exercise.id);
+    setEditingExerciseName(exercise.name);
+    setEditingExerciseDescription(exercise.description ?? '');
+    setEditingExerciseCategory(exercise.category ?? '');
+    setConfiguredTrackingFields(exercise.trackingFields);
+  }
+
+  async function handleSaveExercise(exercise: Exercise) {
+    setIsSavingExercise(true);
     setExerciseError(null);
 
     try {
       const updatedExercise = await updateExercise(exercise.id, {
-        name: exercise.name,
-        description: exercise.description,
-        category: exercise.category,
-        defaultUnit: exercise.defaultUnit,
+        name: editingExerciseName,
+        description: editingExerciseDescription || null,
+        category: editingExerciseCategory || null,
         trackingFields: configuredTrackingFields,
         sportFolderIds: exercise.sportFolderIds,
       });
 
       setExercises((currentExercises) => currentExercises.map((currentExercise) =>
         currentExercise.id === updatedExercise.id ? updatedExercise : currentExercise));
-      setConfiguringExerciseId(null);
+      setEditingExerciseId(null);
     } catch {
-      setExerciseError('Could not update the exercise fields.');
+      setExerciseError('Could not update the exercise.');
     } finally {
-      setIsSavingExerciseFields(false);
+      setIsSavingExercise(false);
     }
   }
+
+  async function handleDeleteExercise(exercise: Exercise) {
+    if (!window.confirm(`Delete "${exercise.name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setExerciseError(null);
+
+    try {
+      await deleteExercise(exercise.id);
+      setExercises((currentExercises) => currentExercises.filter(
+        (currentExercise) => currentExercise.id !== exercise.id,
+      ));
+
+      if (progressExerciseId === exercise.id) {
+        setProgressExerciseId(null);
+      }
+    } catch {
+      setExerciseError('Could not delete the exercise. Exercises already used in sessions are kept to preserve those logs.');
+    }
+  }
+
+  const completedSessions = sessions.filter((session) => session.status === 'Completed');
+  const plannedSessions = sessions.filter((session) => session.status === 'Planned');
+  const completedDurationMinutes = completedSessions.reduce(
+    (total, session) => total + session.durationMinutes,
+    0,
+  );
+  const progressExercise = exercises.find((exercise) => exercise.id === progressExerciseId);
+  const progressEntries = progressExercise
+    ? sessions
+      .filter((session) => session.status === 'Completed')
+      .map((session) => ({
+        session,
+        exercise: session.exercises.find(
+          (sessionExercise) => sessionExercise.exerciseId === progressExercise.id,
+        ),
+      }))
+      .filter((entry) => entry.exercise !== undefined)
+      .sort((first, second) => second.session.sessionDate.localeCompare(first.session.sessionDate))
+    : [];
+  const availableLogMetrics = progressExercise?.trackingFields.filter(
+    (field) => field !== 'Notes',
+  ) ?? [];
+  const activeLogMetric = availableLogMetrics.includes(selectedLogMetric)
+    ? selectedLogMetric
+    : availableLogMetrics[0] ?? '';
+  const chartCutoffDate = (() => {
+    if (chartTimeFrame === 'all') {
+      return null;
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - Number(chartTimeFrame));
+    return formatDateForComparison(cutoff);
+  })();
+  const chartPoints = activeLogMetric
+    ? progressEntries
+      .filter((entry) =>
+        chartCutoffDate === null || entry.session.sessionDate >= chartCutoffDate)
+      .map(({ session, exercise }) => {
+        const value = parseTrackingValue(
+          activeLogMetric,
+          exercise!.trackingValues[activeLogMetric] ?? '',
+        );
+
+        return value === null ? null : { date: session.sessionDate, value };
+      })
+      .filter((point): point is { date: string; value: number } => point !== null)
+      .reverse()
+    : [];
+  const chartMinimum = chartPoints.length > 0
+    ? Math.min(...chartPoints.map((point) => point.value))
+    : 0;
+  const chartMaximum = chartPoints.length > 0
+    ? Math.max(...chartPoints.map((point) => point.value))
+    : 0;
+  const chartRange = chartMaximum - chartMinimum || 1;
+  const chartAverage = chartPoints.length > 0
+    ? chartPoints.reduce((total, point) => total + point.value, 0) / chartPoints.length
+    : 0;
+  const chartBest = activeLogMetric === 'Pace' ? chartMinimum : chartMaximum;
+  const chartLatest = chartPoints.at(-1)?.value ?? 0;
+  const filteredSportSessions = sessions.filter((session) => {
+    const matchesStatus = !sessionStatusFilter || session.status === sessionStatusFilter;
+    const matchesType = !sessionTypeFilter || session.sessionType === sessionTypeFilter;
+    const searchTarget = [session.title, session.notes ?? '', ...session.exercises.map((exercise) => exercise.exerciseName)]
+      .join(' ').toLowerCase();
+    return matchesStatus && matchesType && searchTarget.includes(sessionSearchTerm.trim().toLowerCase());
+  });
 
   return (
     <main>
@@ -221,6 +399,59 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
         {error && <p role="alert">{error}</p>}
       </section>
 
+      <div aria-label="Sport sections" className="sport-detail-tabs" role="tablist">
+        <button
+          aria-selected={activeTab === 'overview'}
+          role="tab"
+          type="button"
+          onClick={() => setActiveTab('overview')}
+        >
+          Overview
+        </button>
+        <button
+          aria-selected={activeTab === 'exercises'}
+          role="tab"
+          type="button"
+          onClick={() => setActiveTab('exercises')}
+        >
+          Exercises
+        </button>
+        <button aria-selected={activeTab === 'templates'} role="tab" type="button" onClick={() => setActiveTab('templates')}>Templates</button>
+        <button
+          aria-selected={activeTab === 'sessions'}
+          role="tab"
+          type="button"
+          onClick={() => setActiveTab('sessions')}
+        >
+          Sessions
+        </button>
+      </div>
+
+      {activeTab === 'overview' && (
+      <section className="dashboard-overview sport-progress-summary">
+        <h2>Training summary</h2>
+        <div className="dashboard-stats">
+          <article className="dashboard-stat-card">
+            <h3>Completed</h3>
+            <strong>{completedSessions.length}</strong>
+            <p>Sessions completed in {folder.name}</p>
+          </article>
+          <article className="dashboard-stat-card">
+            <h3>Planned</h3>
+            <strong>{plannedSessions.length}</strong>
+            <p>Sessions still planned</p>
+          </article>
+          <article className="dashboard-stat-card">
+            <h3>Training time</h3>
+            <strong>{formatDuration(completedDurationMinutes)}</strong>
+            <p>Completed training time</p>
+          </article>
+        </div>
+      </section>
+      )}
+
+      {activeTab === 'exercises' && (
+      <>
       <section>
         <h2>Exercise library</h2>
         <p>Create exercises for {folder.name}. Shared exercises can be added to other sports later.</p>
@@ -239,13 +470,6 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
             placeholder="For example: Technical or Strength"
             value={exerciseCategory}
             onChange={(event) => setExerciseCategory(event.target.value)}
-          />
-          <label htmlFor="exercise-unit">Default unit</label>
-          <input
-            id="exercise-unit"
-            placeholder="For example: repetitions or minutes"
-            value={exerciseDefaultUnit}
-            onChange={(event) => setExerciseDefaultUnit(event.target.value)}
           />
           <label htmlFor="exercise-description">Description</label>
           <textarea
@@ -286,29 +510,20 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
             <ul className="exercise-list">
             {visibleExercises.map((exercise) => (
               <li key={exercise.id}>
-                <div className="exercise-title-row">
-                  <strong>{exercise.name}</strong>
-                  <span className="exercise-category-label">
-                    {exercise.category ?? 'General'}
-                  </span>
-                  {exercise.isBuiltIn && <span className="built-in-badge">Built-in</span>}
-                </div>
-                {(exercise.category || exercise.defaultUnit) && (
-                  <span>
-                    {[exercise.category, exercise.defaultUnit]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                )}
-                {exercise.description && <p>{exercise.description}</p>}
-                <p>
-                  Tracks: {exercise.trackingFields.length > 0
-                    ? exercise.trackingFields.join(', ')
-                    : 'No fields selected'}
-                </p>
-                {!exercise.isBuiltIn && configuringExerciseId === exercise.id ? (
-                  <div className="exercise-field-editor">
-                    <p>Choose the fields you want to track for this exercise.</p>
+                {!exercise.isBuiltIn && editingExerciseId === exercise.id ? (
+                  <div className="exercise-edit-form">
+                    <label>
+                      Name
+                      <input value={editingExerciseName} onChange={(event) => setEditingExerciseName(event.target.value)} required />
+                    </label>
+                    <label>
+                      Category
+                      <input value={editingExerciseCategory} onChange={(event) => setEditingExerciseCategory(event.target.value)} />
+                    </label>
+                    <label>
+                      Description
+                      <textarea value={editingExerciseDescription} onChange={(event) => setEditingExerciseDescription(event.target.value)} />
+                    </label>
                     <div className="tracking-fields">
                       {availableTrackingFields.map((field) => (
                         <label key={field}>
@@ -327,32 +542,74 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
                     </div>
                     <div className="exercise-field-editor-actions">
                       <button
-                        disabled={isSavingExerciseFields}
+                        disabled={!editingExerciseName.trim() || isSavingExercise}
                         type="button"
-                        onClick={() => handleSaveExerciseFields(exercise)}
+                        onClick={() => void handleSaveExercise(exercise)}
                       >
-                        {isSavingExerciseFields ? 'Saving...' : 'Save fields'}
+                        {isSavingExercise ? 'Saving...' : 'Save exercise'}
                       </button>
                       <button
                         className="secondary-button"
                         type="button"
-                        onClick={() => setConfiguringExerciseId(null)}
+                        onClick={() => setEditingExerciseId(null)}
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
-                ) : !exercise.isBuiltIn && (
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={() => {
-                      setConfiguringExerciseId(exercise.id);
-                      setConfiguredTrackingFields(exercise.trackingFields);
-                    }}
-                  >
-                    Configure fields
-                  </button>
+                ) : (
+                  <>
+                <div className="exercise-title-row">
+                  <strong>{exercise.name}</strong>
+                  <span className="exercise-category-label">
+                    {exercise.category ?? 'General'}
+                  </span>
+                  {exercise.isBuiltIn && <span className="built-in-badge">Built-in</span>}
+                </div>
+                {exercise.category && (
+                  <span>
+                    {exercise.category}
+                  </span>
+                )}
+                {exercise.description && <p>{exercise.description}</p>}
+                <p>
+                  Tracks: {exercise.trackingFields.length > 0
+                    ? exercise.trackingFields.join(', ')
+                    : 'No fields selected'}
+                </p>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  aria-pressed={progressExerciseId === exercise.id}
+                  onClick={() => {
+                    setProgressExerciseId(exercise.id);
+                    setSelectedLogMetric(exercise.trackingFields.find(
+                      (field) => field !== 'Notes',
+                    ) ?? '');
+                    setChartTimeFrame('all');
+                  }}
+                >
+                  View logs
+                </button>
+                {!exercise.isBuiltIn && (
+                  <div className="exercise-card-actions">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => startEditingExercise(exercise)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="danger-button"
+                      type="button"
+                      onClick={() => void handleDeleteExercise(exercise)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+                  </>
                 )}
               </li>
             ))}
@@ -382,18 +639,163 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
         )}
       </section>
 
+      <section className="exercise-progress">
+        <h2>Exercise logs</h2>
+        {progressExercise ? (
+          <>
+            <div className="exercise-progress-heading">
+              <div>
+                <h3>{progressExercise.name}</h3>
+                <p>{progressEntries.length} completed {progressEntries.length === 1 ? 'session' : 'sessions'} logged</p>
+              </div>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setProgressExerciseId(null)}
+              >
+                Clear
+              </button>
+            </div>
+            {availableLogMetrics.length > 0 && (
+              <div className="exercise-chart">
+                <div className="exercise-chart-controls">
+                  <label htmlFor="exercise-log-metric">
+                    Chart metric
+                    <select
+                      id="exercise-log-metric"
+                      value={activeLogMetric}
+                      onChange={(event) => setSelectedLogMetric(event.target.value)}
+                    >
+                      {availableLogMetrics.map((metric) => (
+                        <option key={metric} value={metric}>{metric}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label htmlFor="exercise-chart-time-frame">
+                    Time frame
+                    <select
+                      id="exercise-chart-time-frame"
+                      value={chartTimeFrame}
+                      onChange={(event) => setChartTimeFrame(
+                        event.target.value as ChartTimeFrame,
+                      )}
+                    >
+                      <option value="all">All time</option>
+                      <option value="30">Last 30 days</option>
+                      <option value="90">Last 3 months</option>
+                      <option value="180">Last 6 months</option>
+                      <option value="365">Last year</option>
+                    </select>
+                  </label>
+                </div>
+                {chartPoints.length === 0 ? (
+                  <p>No {activeLogMetric.toLowerCase()} values have been logged yet.</p>
+                ) : (
+                  <>
+                    <svg
+                      aria-label={`${progressExercise.name} ${activeLogMetric} chart`}
+                      className="exercise-chart-graphic"
+                      role="img"
+                      viewBox="0 0 640 220"
+                    >
+                      <line x1="44" x2="620" y1="18" y2="18" />
+                      <line x1="44" x2="620" y1="184" y2="184" />
+                      <polyline
+                        fill="none"
+                        points={chartPoints.map((point, index) => {
+                          const x = chartPoints.length === 1
+                            ? 332
+                            : 44 + (576 * index) / (chartPoints.length - 1);
+                          const y = 184 - ((point.value - chartMinimum) / chartRange) * 166;
+                          return `${x},${y}`;
+                        }).join(' ')}
+                      />
+                      {chartPoints.map((point, index) => {
+                        const x = chartPoints.length === 1
+                          ? 332
+                          : 44 + (576 * index) / (chartPoints.length - 1);
+                        const y = 184 - ((point.value - chartMinimum) / chartRange) * 166;
+
+                        return (
+                          <g key={`${point.date}-${index}`}>
+                            <circle cx={x} cy={y} r="5" />
+                            <text x={x} y={y - 10}>{formatMetricValue(activeLogMetric, point.value)}</text>
+                            <text x={x} y="207">{point.date.slice(5)}</text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                    <p className="exercise-chart-range">
+                      Range: {formatMetricValue(activeLogMetric, chartMinimum)} – {formatMetricValue(activeLogMetric, chartMaximum)}
+                    </p>
+                    <div className="exercise-chart-summary">
+                      <span><small>Latest</small>{formatMetricValue(activeLogMetric, chartLatest)}</span>
+                      <span><small>{activeLogMetric === 'Pace' ? 'Fastest' : 'Best'}</small>{formatMetricValue(activeLogMetric, chartBest)}</span>
+                      <span><small>Average</small>{formatMetricValue(activeLogMetric, chartAverage)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {progressEntries.length === 0 ? (
+              <p>No completed sessions have logged this exercise yet.</p>
+            ) : (
+              <ul className="exercise-progress-list">
+                {progressEntries.map(({ session, exercise }) => (
+                  <li key={`${session.id}-${exercise!.exerciseId}`}>
+                    <div>
+                      <strong>{session.sessionDate}</strong>
+                      <span>{session.title}</span>
+                    </div>
+                    <span>{formatTrackingValues(exercise!.trackingValues)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p>Select “View logs” on an exercise above to see its completed-session history.</p>
+        )}
+      </section>
+      </>
+      )}
+
+      {activeTab === 'templates' && (
+        <section className="templates-tab">
+          <div className="section-heading"><div><span className="section-kicker">Reusable plans</span><h2>Workout templates</h2></div></div>
+          <p>Build a repeatable session from this sport’s exercises, then apply it from the new-session dialog.</p>
+          <div className="template-builder">
+            <input placeholder="Template name, for example Easy 5K" value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
+            <div className="template-exercise-picker">
+              {exercises.map((exercise) => <label key={exercise.id}><input type="checkbox" checked={templateExerciseIds.includes(exercise.id)} onChange={() => setTemplateExerciseIds((current) => current.includes(exercise.id) ? current.filter((id) => id !== exercise.id) : [...current, exercise.id])} />{exercise.name}</label>)}
+            </div>
+            <button type="button" disabled={!templateName.trim() || templateExerciseIds.length === 0} onClick={() => { saveTemplates([...templates, { id: crypto.randomUUID(), name: templateName.trim(), sportFolderId: folder.id, exercises: templateExerciseIds.map((exerciseId) => ({ exerciseId, trackingValues: {} })) }]); setTemplateName(''); setTemplateExerciseIds([]); }}>Save template</button>
+          </div>
+          <ul className="template-list">
+            {templates.filter((template) => template.sportFolderId === folder.id).map((template) => <li key={template.id}><div><strong>{template.name}</strong><span>{template.exercises.map((entry) => exercises.find((exercise) => exercise.id === entry.exerciseId)?.name).filter(Boolean).join(', ')}</span></div><button className="danger-button" type="button" onClick={() => saveTemplates(templates.filter((item) => item.id !== template.id))}>Delete</button></li>)}
+          </ul>
+        </section>
+      )}
+
+      {activeTab === 'sessions' && (
       <section>
         <h2>Session history</h2>
+
+        <div className="session-filter-bar sport-session-filters">
+          <input placeholder="Search sessions or exercises" value={sessionSearchTerm} onChange={(event) => setSessionSearchTerm(event.target.value)} />
+          <select value={sessionStatusFilter} onChange={(event) => setSessionStatusFilter(event.target.value)}><option value="">All statuses</option><option>Planned</option><option>Completed</option><option>Cancelled</option></select>
+          <select value={sessionTypeFilter} onChange={(event) => setSessionTypeFilter(event.target.value)}><option value="">All types</option><option>Practice</option><option>Workout</option><option>Match</option><option>Cardio</option><option>Recovery</option><option>Other</option></select>
+        </div>
 
         {isLoading ? (
           <p>Loading sessions...</p>
         ) : error ? (
           <p role="alert">{error}</p>
-        ) : sessions.length === 0 ? (
+        ) : filteredSportSessions.length === 0 ? (
           <p>No sessions have been created for this sport yet.</p>
         ) : (
           <ul className="sport-session-list">
-            {sessions.map((session) => (
+            {filteredSportSessions.map((session) => (
               <li key={session.id}>
                 <div>
                   <strong>{session.title}</strong>
@@ -410,6 +812,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
           </ul>
         )}
       </section>
+      )}
     </main>
   );
 }

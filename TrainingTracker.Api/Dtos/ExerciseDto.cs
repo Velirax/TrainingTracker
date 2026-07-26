@@ -10,8 +10,6 @@ public class ExerciseDto
 
     public string? Category { get; set; }
 
-    public string? DefaultUnit { get; set; }
-
     public List<string> TrackingFields { get; set; } = [];
 
     public bool IsBuiltIn { get; set; }

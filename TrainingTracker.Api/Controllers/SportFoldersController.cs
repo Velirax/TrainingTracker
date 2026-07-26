@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using TrainingTracker.Api.Data;
 using TrainingTracker.Api.Dtos;
 using TrainingTracker.Api.Models;
@@ -7,6 +9,7 @@ using TrainingTracker.Api.Models;
 namespace TrainingTracker.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/sport-folders")]
 public class SportFoldersController : ControllerBase
 {
@@ -17,12 +20,15 @@ public class SportFoldersController : ControllerBase
         _dbContext = dbContext;
     }
 
+    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SportFolderDto>>> GetAll()
     {
         await BuiltInSportSeeder.SeedAsync(_dbContext);
 
         var sportFolders = await _dbContext.SportFolders
+            .Where(folder => folder.UserId == CurrentUserId || folder.UserId == "system")
             .OrderBy(folder => folder.Name)
             .Select(folder => new SportFolderDto
             {
@@ -45,7 +51,7 @@ public class SportFoldersController : ControllerBase
     public async Task<ActionResult<SportFolderDto>> GetById(int id)
     {
         var sportFolder = await _dbContext.SportFolders
-            .Where(folder => folder.Id == id)
+            .Where(folder => folder.Id == id && (folder.UserId == CurrentUserId || folder.UserId == "system"))
             .Select(folder => new SportFolderDto
             {
                 Id = folder.Id,
@@ -73,7 +79,7 @@ public class SportFoldersController : ControllerBase
         var sportFolder = new SportFolder
         {
             // Temporary until ASP.NET Core Identity is introduced.
-            UserId = "development-user",
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "development-user",
             Name = createDto.Name,
             Description = createDto.Description,
             Color = createDto.Color,
@@ -108,6 +114,11 @@ public class SportFoldersController : ControllerBase
         var sportFolder = await _dbContext.SportFolders.FindAsync(id);
 
         if (sportFolder is null)
+        {
+            return NotFound();
+        }
+
+        if (sportFolder.UserId != CurrentUserId)
         {
             return NotFound();
         }

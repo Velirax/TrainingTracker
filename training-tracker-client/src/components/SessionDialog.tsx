@@ -3,6 +3,7 @@ import { getExercises } from '../services/exerciseService';
 import { getSportFolders } from '../services/sportFolderService';
 import {
   createTrainingSession,
+  getTrainingSessionsForSportFolder,
   updateTrainingSession,
 } from '../services/trainingSessionService';
 import type { SportFolder } from '../types/sportFolder';
@@ -18,6 +19,15 @@ interface SessionDialogProps {
   onUpdated?: (session: TrainingSession) => void;
 }
 
+interface WorkoutTemplate {
+  id: string;
+  name: string;
+  sportFolderId: number;
+  exercises: { exerciseId: number; trackingValues: Record<string, string> }[];
+}
+
+function workoutTemplateStorageKey() { return `training-tracker-workout-templates-${JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user?.id ?? 'guest'}`; }
+
 function formatDateForInput(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -32,6 +42,18 @@ function formatTimeForInput(date: Date): string {
     minute: '2-digit',
     hour12: false,
   });
+}
+
+function getTrackingFieldLabel(field: string): string {
+  if (field === 'Duration') {
+    return 'Duration (minutes)';
+  }
+
+  if (field === 'Distance') {
+    return 'Distance (km)';
+  }
+
+  return field === 'Pace' ? 'Pace (min/km)' : field;
 }
 
 function SessionDialog({
@@ -74,6 +96,10 @@ function SessionDialog({
       trackingValues: exercise.trackingValues,
     })) ?? [],
   );
+  const [isAddingExercise, setIsAddingExercise] = useState(false);
+  const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateName, setTemplateName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isEditing = sessionToEdit !== undefined;
@@ -90,6 +116,15 @@ function SessionDialog({
     }
 
     loadSportFolders();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const savedTemplates = localStorage.getItem(workoutTemplateStorageKey());
+      setWorkoutTemplates(savedTemplates ? JSON.parse(savedTemplates) as WorkoutTemplate[] : []);
+    } catch {
+      setWorkoutTemplates([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -113,9 +148,48 @@ function SessionDialog({
     setSelectedSportFolderId(sportFolderId);
     setSelectedExerciseId('');
     setSessionExercises([]);
+    setSelectedTemplateId('');
   }
 
-  function addExercise() {
+  function applyTemplate(templateId: string) {
+    setSelectedTemplateId(templateId);
+
+    if (!templateId) {
+      setSessionExercises([]);
+      return;
+    }
+
+    const template = workoutTemplates.find((item) => item.id === templateId);
+
+    if (template) {
+      setSessionExercises(template.exercises.map((exercise) => ({
+        exerciseId: exercise.exerciseId,
+        trackingValues: { ...exercise.trackingValues },
+      })));
+    }
+  }
+
+  function saveTemplate() {
+    if (!templateName.trim() || !selectedSportFolderId || sessionExercises.length === 0) {
+      return;
+    }
+
+    const template: WorkoutTemplate = {
+      id: crypto.randomUUID(),
+      name: templateName.trim(),
+      sportFolderId: Number(selectedSportFolderId),
+      exercises: sessionExercises.map((exercise) => ({
+        exerciseId: exercise.exerciseId,
+        trackingValues: { ...exercise.trackingValues },
+      })),
+    };
+    const updatedTemplates = [...workoutTemplates, template];
+    setWorkoutTemplates(updatedTemplates);
+    localStorage.setItem(workoutTemplateStorageKey(), JSON.stringify(updatedTemplates));
+    setTemplateName('');
+  }
+
+  async function addExercise() {
     if (!selectedExerciseId) {
       return;
     }
@@ -126,11 +200,37 @@ function SessionDialog({
       return;
     }
 
-    setSessionExercises((currentExercises) => [
-      ...currentExercises,
-      { exerciseId, trackingValues: {} },
-    ]);
-    setSelectedExerciseId('');
+    setIsAddingExercise(true);
+    let trackingValues: Record<string, string> = {};
+
+    try {
+      const previousSessions = await getTrainingSessionsForSportFolder(
+        Number(selectedSportFolderId),
+      );
+      const mostRecentLoggedExercise = previousSessions
+        .filter((session) => session.status === 'Completed')
+        .filter((session) => session.id !== sessionToEdit?.id)
+        .sort((first, second) => {
+          const firstDateTime = `${first.sessionDate}T${first.startTime}`;
+          const secondDateTime = `${second.sessionDate}T${second.startTime}`;
+          return secondDateTime.localeCompare(firstDateTime);
+        })
+        .flatMap((session) => session.exercises)
+        .find((exercise) => exercise.exerciseId === exerciseId);
+
+      trackingValues = mostRecentLoggedExercise
+        ? { ...mostRecentLoggedExercise.trackingValues }
+        : {};
+    } catch {
+      // The exercise can still be added even if its earlier logs cannot load.
+    } finally {
+      setSessionExercises((currentExercises) => [
+        ...currentExercises,
+        { exerciseId, trackingValues },
+      ]);
+      setSelectedExerciseId('');
+      setIsAddingExercise(false);
+    }
   }
 
   function updateExerciseValue(exerciseId: number, field: string, value: string) {
@@ -289,6 +389,18 @@ function SessionDialog({
 
             <div className="dialog-field dialog-field-wide session-exercises-field">
               <label htmlFor="dialog-session-exercise">Exercises performed</label>
+              {selectedSportFolderId && (
+                <div className="workout-template-controls">
+                  <select value={selectedTemplateId} onChange={(event) => applyTemplate(event.target.value)}>
+                    <option value="">Select a template</option>
+                    {workoutTemplates.filter((template) => template.sportFolderId === Number(selectedSportFolderId)).map((template) => (
+                      <option key={template.id} value={template.id}>{template.name}</option>
+                    ))}
+                  </select>
+                  <input placeholder="Template name" value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
+                  <button type="button" onClick={saveTemplate} disabled={!templateName.trim() || sessionExercises.length === 0}>Save template</button>
+                </div>
+              )}
               <div className="session-exercise-picker">
                 <select
                   id="dialog-session-exercise"
@@ -303,8 +415,12 @@ function SessionDialog({
                     </option>
                   ))}
                 </select>
-                <button disabled={!selectedExerciseId} type="button" onClick={addExercise}>
-                  Add
+                <button
+                  disabled={!selectedExerciseId || isAddingExercise}
+                  type="button"
+                  onClick={() => void addExercise()}
+                >
+                  {isAddingExercise ? 'Adding...' : 'Add'}
                 </button>
               </div>
 
@@ -332,9 +448,16 @@ function SessionDialog({
                     <div className="session-exercise-values">
                       {exercise.trackingFields.map((field) => (
                         <label key={field}>
-                          {field}
+                          {getTrackingFieldLabel(field)}
                           <input
-                            type={field === 'Notes' ? 'text' : 'number'}
+                            type={field === 'Notes' || field === 'Pace' ? 'text' : 'number'}
+                            min={field === 'Duration' ? '0' : undefined}
+                            step={field === 'Distance' ? '0.01' : '1'}
+                            placeholder={
+                              field === 'Pace'
+                                ? 'For example: 5:34'
+                                : field === 'Distance' ? 'For example: 5.2' : undefined
+                            }
                             value={sessionExercise.trackingValues[field] ?? ''}
                             onChange={(event) => updateExerciseValue(
                               exercise.id,

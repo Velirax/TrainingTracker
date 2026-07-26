@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using TrainingTracker.Api.Data;
 using TrainingTracker.Api.Dtos;
 using TrainingTracker.Api.Models;
@@ -8,6 +10,7 @@ using TrainingTracker.Api.Models;
 namespace TrainingTracker.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/training-sessions")]
 public class TrainingSessionsController : ControllerBase
 {
@@ -36,6 +39,7 @@ public class TrainingSessionsController : ControllerBase
         var sessions = await _dbContext.TrainingSessions
             .AsNoTracking()
             .Where(session =>
+                session.UserId == CurrentUserId &&
                 session.SessionDate >= startDate &&
                 session.SessionDate <= endDate)
             .OrderBy(session => session.SessionDate)
@@ -65,6 +69,8 @@ public class TrainingSessionsController : ControllerBase
         return Ok(sessions);
     }
 
+    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
     [HttpGet("needs-review")]
     public async Task<ActionResult<IEnumerable<TrainingSessionDto>>> GetNeedsReview()
     {
@@ -73,6 +79,7 @@ public class TrainingSessionsController : ControllerBase
         var sessions = await _dbContext.TrainingSessions
             .AsNoTracking()
             .Where(session =>
+                session.UserId == CurrentUserId &&
                 session.Status == "Planned" &&
                 session.SessionDate < today)
             .OrderBy(session => session.SessionDate)
@@ -116,7 +123,7 @@ public class TrainingSessionsController : ControllerBase
 
         var sessions = await _dbContext.TrainingSessions
             .AsNoTracking()
-            .Where(session => session.SportFolderId == sportFolderId)
+            .Where(session => session.SportFolderId == sportFolderId && session.UserId == CurrentUserId)
             .OrderByDescending(session => session.SessionDate)
             .ThenByDescending(session => session.StartTime)
             .Select(session => new TrainingSessionDto
@@ -190,7 +197,7 @@ public class TrainingSessionsController : ControllerBase
         var trainingSession = new TrainingSession
         {
             // Temporary until ASP.NET Core Identity is introduced.
-            UserId = "development-user",
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "development-user",
             SportFolderId = sportFolder.Id,
             Title = createDto.Title,
             SessionDate = createDto.SessionDate,
@@ -260,6 +267,11 @@ public class TrainingSessionsController : ControllerBase
             .FirstOrDefaultAsync(session => session.Id == id);
 
         if (trainingSession is null)
+        {
+            return NotFound();
+        }
+
+        if (trainingSession.UserId != CurrentUserId)
         {
             return NotFound();
         }
@@ -342,6 +354,11 @@ public class TrainingSessionsController : ControllerBase
             .FirstOrDefaultAsync(session => session.Id == id);
 
         if (trainingSession is null)
+        {
+            return NotFound();
+        }
+
+        if (trainingSession.UserId != CurrentUserId)
         {
             return NotFound();
         }

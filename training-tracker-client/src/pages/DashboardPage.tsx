@@ -4,6 +4,8 @@ import {
   getTrainingSessions,
   getSessionsNeedingReview,
 } from '../services/trainingSessionService';
+import { getSportFolders } from '../services/sportFolderService';
+import type { SportFolder } from '../types/sportFolder';
 import type { TrainingSession } from '../types/trainingSession';
 import TrainingCalendar from '../components/TrainingCalendar';
 import MonthCalendar from '../components/MonthCalendar';
@@ -55,6 +57,7 @@ function groupSessionsBySport(sessions: TrainingSession[]) {
     color: string;
     icon: string | null;
     count: number;
+    durationMinutes: number;
   }>();
 
   for (const session of sessions) {
@@ -62,12 +65,14 @@ function groupSessionsBySport(sessions: TrainingSession[]) {
 
     if (currentSummary) {
       currentSummary.count += 1;
+      currentSummary.durationMinutes += session.durationMinutes;
     } else {
       sportSummaries.set(session.sportFolderId, {
         name: session.sportFolderName,
         color: session.sportFolderColor,
         icon: session.sportFolderIcon,
         count: 1,
+        durationMinutes: session.durationMinutes,
       });
     }
   }
@@ -96,7 +101,19 @@ function formatExerciseTooltip(session: TrainingSession): string {
   return session.exercises.map((exercise) => {
     const values = Object.entries(exercise.trackingValues)
       .filter(([, value]) => value)
-      .map(([field, value]) => `${field}: ${value}`)
+      .map(([field, value]) => {
+        if (field === 'Duration') {
+          return `${field}: ${value} min`;
+        }
+
+        if (field === 'Distance') {
+          return `${field}: ${value} km`;
+        }
+
+        return field === 'Pace'
+          ? `${field}: ${value} min/km`
+          : `${field}: ${value}`;
+      })
       .join(', ');
 
     return values ? `${exercise.exerciseName} — ${values}` : exercise.exerciseName;
@@ -114,6 +131,15 @@ function DashboardPage() {
     >('timeGridWeek');
     const weekDates = getWeekDates(selectedDate);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
+    const [overviewSessions, setOverviewSessions] = useState<TrainingSession[]>([]);
+    const [overviewRange, setOverviewRange] = useState<'week' | 'month' | 'year' | 'custom'>('month');
+    const [customOverviewStart, setCustomOverviewStart] = useState(formatDateForApi(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+    const [customOverviewEnd, setCustomOverviewEnd] = useState(formatDateForApi(new Date()));
+    const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
+    const [sportFilter, setSportFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [typeFilter, setTypeFilter] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const [upcomingSessionSource, setUpcomingSessionSource] = useState<TrainingSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -122,11 +148,31 @@ function DashboardPage() {
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
     const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
     const [sessionsNeedingReview, setSessionsNeedingReview] = useState<TrainingSession[]>([]);
-    const plannedSessions = sessions.filter((session) => session.status === 'Planned');
-    const completedSessions = sessions.filter((session) => session.status === 'Completed');
+    const filteredSessions = sessions.filter((session) => {
+      const matchesSport = !sportFilter || session.sportFolderId === Number(sportFilter);
+      const matchesStatus = !statusFilter || session.status === statusFilter;
+      const matchesType = !typeFilter || session.sessionType === typeFilter;
+      const searchTarget = [
+        session.title,
+        session.notes ?? '',
+        ...session.exercises.map((exercise) => exercise.exerciseName),
+      ].join(' ').toLowerCase();
+      return matchesSport && matchesStatus && matchesType &&
+        searchTarget.includes(searchTerm.trim().toLowerCase());
+    });
+    const filteredOverviewSessions = overviewSessions.filter((session) => {
+      const matchesSport = !sportFilter || session.sportFolderId === Number(sportFilter);
+      const matchesStatus = !statusFilter || session.status === statusFilter;
+      const matchesType = !typeFilter || session.sessionType === typeFilter;
+      const searchTarget = [session.title, session.notes ?? '', ...session.exercises.map((exercise) => exercise.exerciseName)]
+        .join(' ').toLowerCase();
+      return matchesSport && matchesStatus && matchesType && searchTarget.includes(searchTerm.trim().toLowerCase());
+    });
+    const plannedSessions = filteredOverviewSessions.filter((session) => session.status === 'Planned');
+    const completedSessions = filteredOverviewSessions.filter((session) => session.status === 'Completed');
     const plannedBySport = groupSessionsBySport(plannedSessions);
     const completedBySport = groupSessionsBySport(completedSessions);
-    const totalTrainingMinutes = sessions.reduce(
+    const totalTrainingMinutes = filteredOverviewSessions.reduce(
       (total, session) => total + session.durationMinutes,
       0,
     );
@@ -141,6 +187,10 @@ function DashboardPage() {
           `${second.sessionDate}T${second.startTime}`,
         ))
       .slice(0, 5);
+
+    useEffect(() => {
+      getSportFolders().then(setSportFolders).catch(() => setError('Could not load sports.'));
+    }, []);
 
 
     useEffect(() => {
@@ -167,7 +217,26 @@ function DashboardPage() {
         }
 
         loadTrainingSessions();
-        }, [selectedDate, calendarView]);
+    }, [selectedDate, calendarView]);
+
+    useEffect(() => {
+      const [startDate, endDate] = (() => {
+        if (overviewRange === 'custom') return [customOverviewStart, customOverviewEnd];
+        if (overviewRange === 'week') {
+          const dates = getWeekDates(selectedDate);
+          return [formatDateForApi(dates[0]), formatDateForApi(dates[6])];
+        }
+        if (overviewRange === 'year') {
+          return [`${selectedDate.getFullYear()}-01-01`, `${selectedDate.getFullYear()}-12-31`];
+        }
+        const [start, end] = getMonthDates(selectedDate);
+        return [formatDateForApi(start), formatDateForApi(end)];
+      })();
+
+      getTrainingSessions(startDate, endDate).then(setOverviewSessions).catch(() => {
+        setError('Could not load dashboard metrics.');
+      });
+    }, [selectedDate, overviewRange, customOverviewStart, customOverviewEnd]);
 
     useEffect(() => {
       async function loadUpcomingSessions() {
@@ -264,14 +333,43 @@ function DashboardPage() {
     }
     return (
     <main className="calendar-page">
-        <h1>Training calendar</h1>
-        <p>Plan your sessions and see your training week at a glance.</p>
+        <header className="page-header">
+          <span className="page-kicker">Training planner</span>
+          <h1>Training calendar</h1>
+          <p>Plan your sessions, review your workload, and keep your training moving.</p>
+        </header>
+        <section className="session-filter-bar" aria-label="Session filters">
+          <input
+            aria-label="Search sessions or exercises"
+            placeholder="Search sessions or exercises"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+          <select value={sportFilter} onChange={(event) => setSportFilter(event.target.value)}>
+            <option value="">All sports</option>
+            {sportFolders.map((sport) => <option key={sport.id} value={sport.id}>{sport.icon} {sport.name}</option>)}
+          </select>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="">All statuses</option><option>Planned</option><option>Completed</option><option>Cancelled</option>
+          </select>
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+            <option value="">All types</option><option>Practice</option><option>Workout</option><option>Match</option><option>Cardio</option><option>Recovery</option><option>Other</option>
+          </select>
+          {(searchTerm || sportFilter || statusFilter || typeFilter) && <button className="secondary-button" type="button" onClick={() => { setSearchTerm(''); setSportFilter(''); setStatusFilter(''); setTypeFilter(''); }}>Clear filters</button>}
+        </section>
         <section className="dashboard-overview">
           <h2>
-            {calendarView === 'timeGridWeek'
-              ? 'Week overview'
-              : `${monthFormatter.format(selectedDate)} overview`}
+            Training overview
           </h2>
+          <div className="overview-range-controls">
+            <select value={overviewRange} onChange={(event) => setOverviewRange(event.target.value as typeof overviewRange)}>
+              <option value="week">This displayed week</option>
+              <option value="month">This displayed month</option>
+              <option value="year">This displayed year</option>
+              <option value="custom">Custom range</option>
+            </select>
+            {overviewRange === 'custom' && <><input type="date" value={customOverviewStart} onChange={(event) => setCustomOverviewStart(event.target.value)} /><input type="date" value={customOverviewEnd} onChange={(event) => setCustomOverviewEnd(event.target.value)} /></>}
+          </div>
 
           <div className="dashboard-stats">
             <article className="dashboard-stat-card">
@@ -283,7 +381,9 @@ function DashboardPage() {
                     <span style={{ color: sport.color }}>
                       {sport.icon ?? '•'} {sport.name}
                     </span>
-                    <span>{sport.count}</span>
+                    <span>
+                      {sport.count} {sport.count === 1 ? 'session' : 'sessions'} · {formatTrainingTime(sport.durationMinutes)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -298,7 +398,9 @@ function DashboardPage() {
                     <span style={{ color: sport.color }}>
                       {sport.icon ?? '•'} {sport.name}
                     </span>
-                    <span>{sport.count}</span>
+                    <span>
+                      {sport.count} {sport.count === 1 ? 'session' : 'sessions'} · {formatTrainingTime(sport.durationMinutes)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -307,7 +409,7 @@ function DashboardPage() {
             <article className="dashboard-stat-card">
               <h3>Training time</h3>
               <strong>{formatTrainingTime(totalTrainingMinutes)}</strong>
-              <p>{sessions.length} total sessions</p>
+              <p>{filteredOverviewSessions.length} matching sessions</p>
             </article>
           </div>
         </section>
@@ -349,7 +451,7 @@ function DashboardPage() {
               )}
         </h2>
 
-        <div>
+        <div className="calendar-period-controls">
             <button type="button" onClick={() => changeCalendarPeriod(-1)}>
             Previous
             </button>
@@ -359,6 +461,8 @@ function DashboardPage() {
             <button type="button" onClick={() => changeCalendarPeriod(1)}>
             Next
             </button>
+        </div>
+        <div className="calendar-view-controls">
             <button
               aria-pressed={calendarView === 'timeGridWeek'}
               type="button"
@@ -385,14 +489,14 @@ function DashboardPage() {
               {calendarView === 'dayGridMonth' ? (
                 <MonthCalendar
                   selectedDate={selectedDate}
-                  sessions={sessions}
+                  sessions={filteredSessions}
                   onSessionClick={handleSessionClick}
                 />
               ) : (
                 <TrainingCalendar
                   key={`${formatDateForApi(selectedDate)}-${sessions.map((session) => `${session.id}-${session.updatedAt}`).join(',')}`}
                   initialDate={selectedDate}
-                  sessions={sessions}
+                  sessions={filteredSessions}
                   onTimeRangeSelect={handleTimeRangeSelect}
                   onTimeRangeClear={handleTimeRangeClear}
                   onSessionClick={handleSessionClick}

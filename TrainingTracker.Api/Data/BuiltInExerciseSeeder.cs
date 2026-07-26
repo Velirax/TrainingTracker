@@ -141,7 +141,6 @@ public static class BuiltInExerciseSeeder
                         Name = item.Name,
                         Description = item.Description,
                         Category = item.Category,
-                        DefaultUnit = item.DefaultUnit,
                         TrackingFieldsJson = JsonSerializer.Serialize(
                             GetDefaultTrackingFields(item)),
                         IsBuiltIn = true,

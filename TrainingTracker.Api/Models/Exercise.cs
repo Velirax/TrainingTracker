@@ -13,8 +13,6 @@ public class Exercise
 
     public string? Category { get; set; }
 
-    public string? DefaultUnit { get; set; }
-
     public string TrackingFieldsJson { get; set; } = "[]";
 
     public bool IsBuiltIn { get; set; }

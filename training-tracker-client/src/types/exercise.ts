@@ -3,7 +3,6 @@ export interface Exercise {
   name: string;
   description: string | null;
   category: string | null;
-  defaultUnit: string | null;
   trackingFields: string[];
   isBuiltIn: boolean;
   sportFolderIds: number[];
@@ -15,7 +14,6 @@ export interface CreateExerciseRequest {
   name: string;
   description: string | null;
   category: string | null;
-  defaultUnit: string | null;
   trackingFields: string[];
   sportFolderIds: number[];
 }
