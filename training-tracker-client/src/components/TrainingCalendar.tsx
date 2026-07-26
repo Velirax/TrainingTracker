@@ -56,6 +56,7 @@ function TrainingCalendar({
         onTimeRangeSelect(selectionInfo.start, selectionInfo.end);
       }}
       unselect={onTimeRangeClear}
+      unselectCancel=".selected-range-actions, .dialog-backdrop"
       eventClick={(clickInfo) => {
         onSessionClick(Number(clickInfo.event.id));
       }}

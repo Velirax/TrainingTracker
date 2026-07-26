@@ -152,7 +152,7 @@ function DashboardPage() {
           ) : (
             <>
               <TrainingCalendar
-                key={formatDateForApi(selectedDate)}
+                key={`${formatDateForApi(selectedDate)}-${sessions.map((session) => `${session.id}-${session.updatedAt}`).join(',')}`}
                 initialDate={selectedDate}
                 sessions={sessions}
                 onTimeRangeSelect={handleTimeRangeSelect}
