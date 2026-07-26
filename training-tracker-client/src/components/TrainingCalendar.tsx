@@ -25,8 +25,7 @@ function TrainingCalendar({
     title: session.title,
     start: `${session.sessionDate}T${session.startTime}`,
     end: `${session.sessionDate}T${session.endTime}`,
-    backgroundColor: session.sportFolderColor,
-    borderColor: session.sportFolderColor,
+    color: session.sportFolderColor,
   }));
 
   return (
