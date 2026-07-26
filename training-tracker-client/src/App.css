@@ -6,6 +6,30 @@ main {
   text-align: left;
 }
 
+.app-navigation {
+  display: flex;
+  gap: 4px;
+  width: min(100%, 1200px);
+  margin: 24px auto 0;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.app-navigation button {
+  padding: 8px 14px;
+  color: var(--text);
+  background: transparent;
+}
+
+.app-navigation button:hover {
+  background: var(--accent-bg);
+}
+
+.app-navigation .app-tab-active {
+  color: white;
+  background: var(--accent);
+}
+
 main > h1 {
   margin: 0;
 }
@@ -85,6 +109,89 @@ li {
   border-radius: 6px;
   background: var(--accent-bg);
   font-weight: 600;
+}
+
+.sport-folder-button {
+  width: 100%;
+  padding: 0;
+  color: var(--text-h);
+  background: transparent;
+  text-align: left;
+}
+
+.sport-folder-button:hover {
+  color: var(--accent-border);
+  background: transparent;
+}
+
+.starter-sport-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.starter-sport-button {
+  padding: 8px 10px;
+  border: 2px solid;
+  color: var(--text-h);
+  background: var(--bg);
+}
+
+.starter-sport-button:hover {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.sport-detail-header {
+  margin-top: 16px;
+}
+
+.sport-detail-header h1 {
+  margin: 0;
+  min-height: 56px;
+  line-height: 1.2;
+}
+
+.sport-detail-header p {
+  margin: 16px 0 0;
+  line-height: 1.5;
+}
+
+.sport-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sport-session-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sport-session-list strong,
+.sport-session-list span {
+  display: block;
+}
+
+.sport-session-list div > span {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sport-session-meta {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  text-align: right;
+}
+
+.sport-session-meta span {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 13px;
 }
 
 .week-grid {

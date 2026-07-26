@@ -1,6 +1,7 @@
 import type {
   CreateSportFolderRequest,
   SportFolder,
+  UpdateSportFolderRequest,
 } from '../types/sportFolder';
 
 const apiBaseUrl = 'http://localhost:5205/api';
@@ -26,6 +27,25 @@ export async function createSportFolder(request: CreateSportFolderRequest,): Pro
 
   if (!response.ok) {
     throw new Error('Could not create the sport folder.');
+  }
+
+  return response.json() as Promise<SportFolder>;
+}
+
+export async function updateSportFolder(
+  id: number,
+  request: UpdateSportFolderRequest,
+): Promise<SportFolder> {
+  const response = await fetch(`${apiBaseUrl}/sport-folders/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error('Could not update the sport folder.');
   }
 
   return response.json() as Promise<SportFolder>;

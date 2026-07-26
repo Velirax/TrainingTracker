@@ -15,3 +15,7 @@ export interface CreateSportFolderRequest {
   color: string;
   icon: string | null;
 }
+
+export interface UpdateSportFolderRequest extends CreateSportFolderRequest {
+  isArchived: boolean;
+}

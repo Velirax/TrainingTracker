@@ -99,6 +99,47 @@ public class TrainingSessionsController : ControllerBase
         return Ok(sessions);
     }
 
+    [HttpGet("sport-folders/{sportFolderId:int}")]
+    public async Task<ActionResult<IEnumerable<TrainingSessionDto>>> GetBySportFolder(
+        int sportFolderId)
+    {
+        var sportFolderExists = await _dbContext.SportFolders
+            .AnyAsync(folder => folder.Id == sportFolderId);
+
+        if (!sportFolderExists)
+        {
+            return NotFound();
+        }
+
+        var sessions = await _dbContext.TrainingSessions
+            .AsNoTracking()
+            .Where(session => session.SportFolderId == sportFolderId)
+            .OrderByDescending(session => session.SessionDate)
+            .ThenByDescending(session => session.StartTime)
+            .Select(session => new TrainingSessionDto
+            {
+                Id = session.Id,
+                SportFolderId = session.SportFolderId,
+                SportFolderName = session.SportFolder.Name,
+                SportFolderColor = session.SportFolder.Color,
+                SportFolderIcon = session.SportFolder.Icon,
+                Title = session.Title,
+                SessionDate = session.SessionDate,
+                StartTime = session.StartTime,
+                EndTime = session.EndTime,
+                DurationMinutes = session.DurationMinutes,
+                SessionType = session.SessionType,
+                Status = session.Status,
+                Rating = session.Rating,
+                Notes = session.Notes,
+                CreatedAt = session.CreatedAt,
+                UpdatedAt = session.UpdatedAt
+            })
+            .ToListAsync();
+
+        return Ok(sessions);
+    }
+
     [HttpPost]
     public async Task<ActionResult<TrainingSessionDto>> Create(
         [FromBody] CreateTrainingSessionDto createDto)

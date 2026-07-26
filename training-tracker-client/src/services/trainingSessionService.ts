@@ -81,3 +81,17 @@ export async function getSessionsNeedingReview(): Promise<TrainingSession[]> {
 
   return response.json() as Promise<TrainingSession[]>;
 }
+
+export async function getTrainingSessionsForSportFolder(
+  sportFolderId: number,
+): Promise<TrainingSession[]> {
+  const response = await fetch(
+    `${apiBaseUrl}/training-sessions/sport-folders/${sportFolderId}`,
+  );
+
+  if (!response.ok) {
+    throw new Error('Could not load training sessions for this sport.');
+  }
+
+  return response.json() as Promise<TrainingSession[]>;
+}

@@ -5,6 +5,22 @@ import {
   getSportFolders,
 } from '../services/sportFolderService';
 import type { SportFolder } from '../types/sportFolder';
+import SportFolderDetail from '../components/SportFolderDetail';
+
+const starterSports = [
+  { name: 'Running', icon: '🏃', color: '#F7963B' },
+  { name: 'Cycling', icon: '🚴', color: '#16A34A' },
+  { name: 'Swimming', icon: '🏊', color: '#0EA5E9' },
+  { name: 'Gym', icon: '🏋️', color: '#DC2626' },
+  { name: 'Calisthenics', icon: '🤸', color: '#7C3AED' },
+  { name: 'Tennis', icon: '🎾', color: '#2563EB' },
+  { name: 'Padel', icon: '🏓', color: '#0891B2' },
+  { name: 'Football', icon: '⚽', color: '#15803D' },
+  { name: 'Basketball', icon: '🏀', color: '#EA580C' },
+  { name: 'Hiking', icon: '🥾', color: '#65A30D' },
+  { name: 'Yoga', icon: '🧘', color: '#9333EA' },
+  { name: 'Walking', icon: '🚶', color: '#64748B' },
+];
 
 
 function SportFoldersPage() {
@@ -16,6 +32,8 @@ function SportFoldersPage() {
   const [folderIcon, setFolderIcon] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<SportFolder | null>(null);
+  const [addingStarterSport, setAddingStarterSport] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadSportFolders() {
@@ -66,10 +84,77 @@ function SportFoldersPage() {
     return <main>{error}</main>;
   }
 
+  async function handleAddStarterSport(
+    sport: (typeof starterSports)[number],
+  ) {
+    setAddingStarterSport(sport.name);
+    setFormError(null);
+
+    try {
+      const createdFolder = await createSportFolder({
+        name: sport.name,
+        description: null,
+        color: sport.color,
+        icon: sport.icon,
+      });
+
+      setSportFolders((currentFolders) => [...currentFolders, createdFolder]);
+    } catch {
+      setFormError('Could not add this starter sport.');
+    } finally {
+      setAddingStarterSport(null);
+    }
+  }
+
+  if (selectedFolder) {
+    return (
+      <SportFolderDetail
+        folder={selectedFolder}
+        onBack={() => setSelectedFolder(null)}
+        onUpdated={(updatedFolder) => {
+          setSportFolders((currentFolders) =>
+            currentFolders.map((folder) =>
+              folder.id === updatedFolder.id ? updatedFolder : folder,
+            ),
+          );
+          setSelectedFolder(updatedFolder.isArchived ? null : updatedFolder);
+        }}
+      />
+    );
+  }
+
+  const availableStarterSports = starterSports.filter((starterSport) =>
+    !sportFolders.some(
+      (folder) => folder.name.toLowerCase() === starterSport.name.toLowerCase(),
+    ),
+  );
+  const activeSportFolders = sportFolders.filter((folder) => !folder.isArchived);
+
   return (
     <main>
       <h1>Training Tracker</h1>
       <p>Plan and track your multi-sport training.</p>
+
+      {availableStarterSports.length > 0 && (
+        <section>
+          <h2>Add a sport</h2>
+          <p>Start with a common sport, then customize it whenever you like.</p>
+          <div className="starter-sport-list">
+            {availableStarterSports.map((sport) => (
+              <button
+                key={sport.name}
+                className="starter-sport-button"
+                disabled={addingStarterSport !== null}
+                style={{ borderColor: sport.color }}
+                type="button"
+                onClick={() => handleAddStarterSport(sport)}
+              >
+                {sport.icon} {sport.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2>Create a sport folder</h2>
@@ -112,15 +197,20 @@ function SportFoldersPage() {
       <section>
         <h2>My sport folders</h2>
 
-        {sportFolders.length === 0 ? (
+        {activeSportFolders.length === 0 ? (
           <p>You have no sport folders yet.</p>
         ) : (
           <ul>
-            {sportFolders.map((folder) => (
+            {activeSportFolders.map((folder) => (
               <li key={folder.id}>
-                <span style={{ color: folder.color }}>
+                <button
+                  className="sport-folder-button"
+                  style={{ color: folder.color }}
+                  type="button"
+                  onClick={() => setSelectedFolder(folder)}
+                >
                   {folder.icon} {folder.name}
-                </span>
+                </button>
               </li>
             ))}
           </ul>
