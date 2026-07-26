@@ -42,3 +42,22 @@ export async function createTrainingSession(
 
   return response.json() as Promise<TrainingSession>;
 }
+
+export async function updateTrainingSession(
+  id: number,
+  request: CreateTrainingSessionRequest,
+): Promise<TrainingSession> {
+  const response = await fetch(`${apiBaseUrl}/training-sessions/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error('Could not update the training session.');
+  }
+
+  return response.json() as Promise<TrainingSession>;
+}

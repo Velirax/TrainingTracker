@@ -128,4 +128,74 @@ public class TrainingSessionsController : ControllerBase
             UpdatedAt = trainingSession.UpdatedAt
         });
     }
+
+    [HttpPut("{id:int}")]
+public async Task<ActionResult<TrainingSessionDto>> Update(
+    int id,
+    [FromBody] UpdateTrainingSessionDto updateDto)
+{
+    if (updateDto.EndTime <= updateDto.StartTime)
+    {
+        return BadRequest(new
+        {
+            message = "End time must be later than start time."
+        });
+    }
+
+    var trainingSession = await _dbContext.TrainingSessions
+        .Include(session => session.SportFolder)
+        .FirstOrDefaultAsync(session => session.Id == id);
+
+    if (trainingSession is null)
+    {
+        return NotFound();
+    }
+
+    var sportFolder = await _dbContext.SportFolders
+        .FirstOrDefaultAsync(folder => folder.Id == updateDto.SportFolderId);
+
+    if (sportFolder is null)
+    {
+        return BadRequest(new
+        {
+            message = "The selected sport folder does not exist."
+        });
+    }
+
+    var duration = updateDto.EndTime - updateDto.StartTime;
+
+    trainingSession.SportFolderId = sportFolder.Id;
+    trainingSession.Title = updateDto.Title;
+    trainingSession.SessionDate = updateDto.SessionDate;
+    trainingSession.StartTime = updateDto.StartTime;
+    trainingSession.EndTime = updateDto.EndTime;
+    trainingSession.DurationMinutes = (int)duration.TotalMinutes;
+    trainingSession.SessionType = updateDto.SessionType;
+    trainingSession.Status = updateDto.Status;
+    trainingSession.Rating = updateDto.Rating;
+    trainingSession.Notes = updateDto.Notes;
+    trainingSession.UpdatedAt = DateTime.UtcNow;
+
+    await _dbContext.SaveChangesAsync();
+
+    return Ok(new TrainingSessionDto
+    {
+        Id = trainingSession.Id,
+        SportFolderId = sportFolder.Id,
+        SportFolderName = sportFolder.Name,
+        SportFolderColor = sportFolder.Color,
+        SportFolderIcon = sportFolder.Icon,
+        Title = trainingSession.Title,
+        SessionDate = trainingSession.SessionDate,
+        StartTime = trainingSession.StartTime,
+        EndTime = trainingSession.EndTime,
+        DurationMinutes = trainingSession.DurationMinutes,
+        SessionType = trainingSession.SessionType,
+        Status = trainingSession.Status,
+        Rating = trainingSession.Rating,
+        Notes = trainingSession.Notes,
+        CreatedAt = trainingSession.CreatedAt,
+        UpdatedAt = trainingSession.UpdatedAt
+    });
+}
 }

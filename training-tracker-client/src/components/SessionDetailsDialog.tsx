@@ -3,9 +3,10 @@ import type { TrainingSession } from '../types/trainingSession';
 interface SessionDetailsDialogProps {
   session: TrainingSession;
   onClose: () => void;
+  onEdit: () => void;
 }
 
-function SessionDetailsDialog({ session, onClose }: SessionDetailsDialogProps) {
+function SessionDetailsDialog({ session, onClose, onEdit }: SessionDetailsDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section
@@ -16,6 +17,9 @@ function SessionDetailsDialog({ session, onClose }: SessionDetailsDialogProps) {
       >
         <div className="session-dialog-header">
           <h2 id="session-details-title">{session.title}</h2>
+          <button type="button" onClick={onEdit}>
+            Edit
+          </button>
           <button aria-label="Close session details" type="button" onClick={onClose}>
             Close
           </button>

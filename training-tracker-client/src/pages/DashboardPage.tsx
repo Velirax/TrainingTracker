@@ -42,6 +42,7 @@ function DashboardPage() {
     const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
     const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
+    const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
 
 
     useEffect(() => {
@@ -162,10 +163,44 @@ function DashboardPage() {
                 />
                 )}
 
+                {editingSession && (
+                  <SessionDialog
+                    key={editingSession.id}
+                    start={new Date(
+                      `${editingSession.sessionDate}T${editingSession.startTime}`,
+                    )}
+                    end={new Date(
+                      `${editingSession.sessionDate}T${editingSession.endTime}`,
+                    )}
+                    sessionToEdit={editingSession}
+                    onClose={() => setEditingSession(null)}
+                    onCreated={(createdSession) => {
+                      setSessions((currentSessions) => [
+                        ...currentSessions,
+                        createdSession,
+                      ]);
+                    }}
+                    onUpdated={(updatedSession) => {
+                      setSessions((currentSessions) =>
+                        currentSessions.map((session) =>
+                          session.id === updatedSession.id
+                            ? updatedSession
+                            : session,
+                        ),
+                      );
+                      setEditingSession(null);
+                    }}
+                  />
+                )}
+
                 {selectedSession && (
                   <SessionDetailsDialog
                     session={selectedSession}
                     onClose={() => setSelectedSession(null)}
+                    onEdit={() => {
+                      setEditingSession(selectedSession);
+                      setSelectedSession(null);
+                    }}
                   />
                 )}
             </>

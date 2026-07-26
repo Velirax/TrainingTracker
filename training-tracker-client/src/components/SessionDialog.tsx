@@ -1,6 +1,9 @@
 import { type SubmitEvent, useEffect, useState } from 'react';
 import { getSportFolders } from '../services/sportFolderService';
-import { createTrainingSession } from '../services/trainingSessionService';
+import {
+  createTrainingSession,
+  updateTrainingSession,
+} from '../services/trainingSessionService';
 import type { SportFolder } from '../types/sportFolder';
 import type { TrainingSession } from '../types/trainingSession';
 
@@ -9,6 +12,8 @@ interface SessionDialogProps {
   end: Date;
   onClose: () => void;
   onCreated: (session: TrainingSession) => void;
+  sessionToEdit?: TrainingSession;
+  onUpdated?: (session: TrainingSession) => void;
 }
 
 function formatDateForInput(date: Date): string {
@@ -32,19 +37,37 @@ function SessionDialog({
   end,
   onClose,
   onCreated,
+  sessionToEdit,
+  onUpdated,
 }: SessionDialogProps) {
   const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
-  const [selectedSportFolderId, setSelectedSportFolderId] = useState('');
-  const [title, setTitle] = useState('');
-  const [sessionDate, setSessionDate] = useState(formatDateForInput(start));
-  const [startTime, setStartTime] = useState(formatTimeForInput(start));
-  const [endTime, setEndTime] = useState(formatTimeForInput(end));
-  const [sessionType, setSessionType] = useState('Practice');
-  const [sessionStatus, setSessionStatus] = useState('Planned');
-  const [rating, setRating] = useState('');
-  const [notes, setNotes] = useState('');
+  const [selectedSportFolderId, setSelectedSportFolderId] = useState(
+    sessionToEdit ? String(sessionToEdit.sportFolderId) : '',
+  );
+  const [title, setTitle] = useState(sessionToEdit?.title ?? '');
+  const [sessionDate, setSessionDate] = useState(
+    sessionToEdit?.sessionDate ?? formatDateForInput(start),
+  );
+  const [startTime, setStartTime] = useState(
+    sessionToEdit?.startTime.slice(0, 5) ?? formatTimeForInput(start),
+  );
+  const [endTime, setEndTime] = useState(
+    sessionToEdit?.endTime.slice(0, 5) ?? formatTimeForInput(end),
+  );
+  const [sessionType, setSessionType] = useState(
+    sessionToEdit?.sessionType ?? 'Practice',
+  );
+  const [sessionStatus, setSessionStatus] = useState(
+    sessionToEdit?.status ?? 'Planned',
+  );
+  const [rating, setRating] = useState(
+    sessionToEdit?.rating ? String(sessionToEdit.rating) : '',
+  );
+  const [notes, setNotes] = useState(sessionToEdit?.notes ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const isEditing = sessionToEdit !== undefined;
+  
 
   useEffect(() => {
     async function loadSportFolders() {
@@ -59,7 +82,7 @@ function SessionDialog({
     loadSportFolders();
   }, []);
 
-  async function handleCreateSession(
+  async function handleSubmit(
     event: SubmitEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
@@ -73,7 +96,7 @@ function SessionDialog({
     setIsSaving(true);
 
     try {
-      const createdSession = await createTrainingSession({
+      const request = {
         sportFolderId: Number(selectedSportFolderId),
         title,
         sessionDate,
@@ -83,11 +106,23 @@ function SessionDialog({
         status: sessionStatus,
         rating: rating ? Number(rating) : null,
         notes: notes || null,
-      });
+      };
 
-      onCreated(createdSession);
+      const savedSession = sessionToEdit
+        ? await updateTrainingSession(sessionToEdit.id, request)
+        : await createTrainingSession(request);
+
+      if (isEditing) {
+        onUpdated?.(savedSession);
+      } else {
+        onCreated(savedSession);
+      }
     } catch {
-      setFormError('Could not create the training session.');
+      setFormError(
+        isEditing
+          ? 'Could not update the training session.'
+          : 'Could not create the training session.',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -102,7 +137,9 @@ function SessionDialog({
         role="dialog"
       >
         <div className="session-dialog-header">
-          <h2 id="session-dialog-title">New training session</h2>
+          <h2 id="session-dialog-title">
+            {isEditing ? 'Edit training session' : 'New training session'}
+          </h2>
           <button
             aria-label="Close session dialog"
             type="button"
@@ -112,7 +149,7 @@ function SessionDialog({
           </button>
         </div>
 
-        <form onSubmit={handleCreateSession}>
+        <form onSubmit={handleSubmit}>
           <p>
             Selected: {start.toLocaleString()} – {end.toLocaleString()}
           </p>
@@ -176,7 +213,9 @@ function SessionDialog({
           </div>
 
           <button type="submit" disabled={isSaving}>
-            {isSaving ? 'Creating...' : 'Create session'}
+            {isSaving
+              ? isEditing ? 'Saving...' : 'Creating...'
+              : isEditing ? 'Save changes' : 'Create session'}
           </button>
 
           {formError && <p role="alert">{formError}</p>}
