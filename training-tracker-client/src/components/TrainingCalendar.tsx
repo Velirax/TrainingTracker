@@ -123,6 +123,9 @@ function TrainingCalendar({
         </div>
       )}
       eventMouseEnter={(hoverInfo) => {
+        if (hoverInfo.event.extendedProps.exerciseTooltip === 'No exercises logged.') {
+          return;
+        }
         const wrapperBounds = calendarWrapperRef.current?.getBoundingClientRect();
         const eventBounds = hoverInfo.el.getBoundingClientRect();
 

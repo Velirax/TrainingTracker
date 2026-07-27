@@ -93,15 +93,14 @@ function MonthCalendar({
                   className="month-calendar-session"
                   style={{ backgroundColor: session.sportFolderColor }}
                   type="button"
-                  data-exercise-tooltip={formatExerciseTooltip(session)}
+                  data-exercise-tooltip={session.exercises.length > 0 ? formatExerciseTooltip(session) : undefined}
                   onClick={() => onSessionClick(session.id)}
                   aria-label={`${session.title}, ${session.startTime.slice(0, 5)}`}
                 >
                   <span className="month-calendar-session-time">
-                    {session.startTime.slice(0, 5)}
+                    {session.startTime.slice(0, 5)}{session.recurrenceGroupId ? ' · Weekly' : ''}
                   </span>
                   <span className="month-calendar-session-title">{session.title}</span>
-                  {session.recurrenceGroupId && <span className="month-calendar-recurring">Weekly</span>}
                 </button>
               ))}
               {daySessions.length > 3 && (
