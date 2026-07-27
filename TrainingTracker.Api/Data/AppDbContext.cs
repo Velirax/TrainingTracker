@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<Exercise> Exercises { get; set; }
     public DbSet<ExerciseSportFolder> ExerciseSportFolders { get; set; }
     public DbSet<AppUser> Users { get; set; }
+    public DbSet<WorkoutTemplate> WorkoutTemplates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

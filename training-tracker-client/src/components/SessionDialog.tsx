@@ -9,6 +9,7 @@ import {
 import type { SportFolder } from '../types/sportFolder';
 import type { Exercise } from '../types/exercise';
 import type { TrainingSession } from '../types/trainingSession';
+import { createWorkoutTemplate, getWorkoutTemplates, type WorkoutTemplate } from '../services/workoutTemplateService';
 
 interface SessionDialogProps {
   start: Date;
@@ -19,14 +20,6 @@ interface SessionDialogProps {
   onUpdated?: (session: TrainingSession) => void;
 }
 
-interface WorkoutTemplate {
-  id: string;
-  name: string;
-  sportFolderId: number;
-  exercises: { exerciseId: number; trackingValues: Record<string, string> }[];
-}
-
-function workoutTemplateStorageKey() { return `training-tracker-workout-templates-${JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user?.id ?? 'guest'}`; }
 
 function formatDateForInput(date: Date): string {
   const year = date.getFullYear();
@@ -119,13 +112,9 @@ function SessionDialog({
   }, []);
 
   useEffect(() => {
-    try {
-      const savedTemplates = localStorage.getItem(workoutTemplateStorageKey());
-      setWorkoutTemplates(savedTemplates ? JSON.parse(savedTemplates) as WorkoutTemplate[] : []);
-    } catch {
-      setWorkoutTemplates([]);
-    }
-  }, []);
+    if (!selectedSportFolderId) return;
+    getWorkoutTemplates(Number(selectedSportFolderId)).then(setWorkoutTemplates).catch(() => setWorkoutTemplates([]));
+  }, [selectedSportFolderId]);
 
   useEffect(() => {
     async function loadExercises() {
@@ -159,7 +148,7 @@ function SessionDialog({
       return;
     }
 
-    const template = workoutTemplates.find((item) => item.id === templateId);
+    const template = workoutTemplates.find((item) => String(item.id) === templateId);
 
     if (template) {
       setSessionExercises(template.exercises.map((exercise) => ({
@@ -169,24 +158,19 @@ function SessionDialog({
     }
   }
 
-  function saveTemplate() {
+  async function saveTemplate() {
     if (!templateName.trim() || !selectedSportFolderId || sessionExercises.length === 0) {
       return;
     }
 
-    const template: WorkoutTemplate = {
-      id: crypto.randomUUID(),
-      name: templateName.trim(),
-      sportFolderId: Number(selectedSportFolderId),
-      exercises: sessionExercises.map((exercise) => ({
+    try {
+      const template = await createWorkoutTemplate(templateName.trim(), Number(selectedSportFolderId), sessionExercises.map((exercise) => ({
         exerciseId: exercise.exerciseId,
         trackingValues: { ...exercise.trackingValues },
-      })),
-    };
-    const updatedTemplates = [...workoutTemplates, template];
-    setWorkoutTemplates(updatedTemplates);
-    localStorage.setItem(workoutTemplateStorageKey(), JSON.stringify(updatedTemplates));
-    setTemplateName('');
+      })));
+      setWorkoutTemplates((items) => [...items, template]);
+      setTemplateName('');
+    } catch { setFormError('Could not save the workout template.'); }
   }
 
   async function addExercise() {
@@ -398,7 +382,7 @@ function SessionDialog({
                     ))}
                   </select>
                   <input placeholder="Template name" value={templateName} onChange={(event) => setTemplateName(event.target.value)} />
-                  <button type="button" onClick={saveTemplate} disabled={!templateName.trim() || sessionExercises.length === 0}>Save template</button>
+                  <button type="button" onClick={() => void saveTemplate()} disabled={!templateName.trim() || sessionExercises.length === 0}>Save template</button>
                 </div>
               )}
               <div className="session-exercise-picker">

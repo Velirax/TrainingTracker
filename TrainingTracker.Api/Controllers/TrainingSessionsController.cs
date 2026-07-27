@@ -173,7 +173,8 @@ public class TrainingSessionsController : ControllerBase
         }
 
         var sportFolder = await _dbContext.SportFolders
-            .FirstOrDefaultAsync(folder => folder.Id == createDto.SportFolderId);
+            .FirstOrDefaultAsync(folder => folder.Id == createDto.SportFolderId &&
+                (folder.UserId == CurrentUserId || folder.UserId == "system"));
 
         if (sportFolder is null)
         {

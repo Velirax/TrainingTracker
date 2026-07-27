@@ -171,21 +171,29 @@ public static class BuiltInExerciseSeeder
         CatalogExercise item,
         ref bool hasChanges)
     {
-        if (!exercise.IsBuiltIn ||
-            (!string.IsNullOrWhiteSpace(exercise.TrackingFieldsJson) &&
-             exercise.TrackingFieldsJson != "[]"))
+        if (!exercise.IsBuiltIn)
         {
             return;
         }
 
-        exercise.TrackingFieldsJson = JsonSerializer.Serialize(
-            GetDefaultTrackingFields(item));
+        var defaultFieldsJson = JsonSerializer.Serialize(GetDefaultTrackingFields(item));
+        if (exercise.TrackingFieldsJson == defaultFieldsJson)
+        {
+            return;
+        }
+
+        exercise.TrackingFieldsJson = defaultFieldsJson;
         exercise.UpdatedAt = DateTime.UtcNow;
         hasChanges = true;
     }
 
     private static string[] GetDefaultTrackingFields(CatalogExercise item)
     {
+        if (item.Category == "Match")
+        {
+            return ["Duration", "Calories", "Notes"];
+        }
+
         return item.Sport switch
         {
             "Running" or "Walking" => ["Duration", "Distance", "Pace", "Calories", "Notes"],

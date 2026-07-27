@@ -7,6 +7,7 @@ import {
 } from '../services/exerciseService';
 import { updateSportFolder } from '../services/sportFolderService';
 import { getTrainingSessionsForSportFolder } from '../services/trainingSessionService';
+import { createWorkoutTemplate, deleteWorkoutTemplate, getWorkoutTemplates, updateWorkoutTemplate, type WorkoutTemplate } from '../services/workoutTemplateService';
 import type { Exercise } from '../types/exercise';
 import type { SportFolder } from '../types/sportFolder';
 import type { TrainingSession } from '../types/trainingSession';
@@ -32,8 +33,6 @@ const availableTrackingFields = [
 const exercisesPerPage = 6;
 
 type ChartTimeFrame = 'all' | '30' | '90' | '180' | '365';
-interface WorkoutTemplate { id: string; name: string; sportFolderId: number; exercises: { exerciseId: number; trackingValues: Record<string, string> }[]; }
-function workoutTemplateStorageKey() { return `training-tracker-workout-templates-${JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user?.id ?? 'guest'}`; }
 
 function formatDuration(durationMinutes: number): string {
   const hours = Math.floor(durationMinutes / 60);
@@ -133,6 +132,9 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [templateName, setTemplateName] = useState('');
   const [templateExerciseIds, setTemplateExerciseIds] = useState<number[]>([]);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
+  const [editingTemplateName, setEditingTemplateName] = useState('');
+  const [editingTemplateExercises, setEditingTemplateExercises] = useState<WorkoutTemplate['exercises']>([]);
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
   const [sessionStatusFilter, setSessionStatusFilter] = useState('');
   const [sessionTypeFilter, setSessionTypeFilter] = useState('');
@@ -151,11 +153,41 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
     loadSessions();
   }, [folder.id]);
 
-  useEffect(() => {
-    try { setTemplates(JSON.parse(localStorage.getItem(workoutTemplateStorageKey()) ?? '[]') as WorkoutTemplate[]); } catch { setTemplates([]); }
-  }, []);
+  function startEditingTemplate(template: WorkoutTemplate) {
+    setEditingTemplateId(template.id);
+    setEditingTemplateName(template.name);
+    setEditingTemplateExercises(template.exercises.map((exercise) => ({
+      exerciseId: exercise.exerciseId,
+      trackingValues: { ...exercise.trackingValues },
+    })));
+  }
 
-  function saveTemplates(nextTemplates: WorkoutTemplate[]) { setTemplates(nextTemplates); localStorage.setItem(workoutTemplateStorageKey(), JSON.stringify(nextTemplates)); }
+  function moveTemplateExercise(index: number, direction: number) {
+    setEditingTemplateExercises((items) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= items.length) return items;
+      const next = [...items];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  }
+
+  function updateTemplateValue(exerciseId: number, field: string, value: string) {
+    setEditingTemplateExercises((items) => items.map((item) => item.exerciseId === exerciseId
+      ? { ...item, trackingValues: { ...item.trackingValues, [field]: value } }
+      : item));
+  }
+
+  async function saveTemplateEdits() {
+    if (!editingTemplateId || !editingTemplateName.trim() || editingTemplateExercises.length === 0) return;
+    const saved = await updateWorkoutTemplate(editingTemplateId, editingTemplateName.trim(), folder.id, editingTemplateExercises);
+    setTemplates((items) => items.map((item) => item.id === saved.id ? saved : item));
+    setEditingTemplateId(null);
+  }
+
+  useEffect(() => {
+    getWorkoutTemplates(folder.id).then(setTemplates).catch(() => setTemplates([]));
+  }, [folder.id]);
 
   useEffect(() => {
     async function loadExercises() {
@@ -769,10 +801,52 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
             <div className="template-exercise-picker">
               {exercises.map((exercise) => <label key={exercise.id}><input type="checkbox" checked={templateExerciseIds.includes(exercise.id)} onChange={() => setTemplateExerciseIds((current) => current.includes(exercise.id) ? current.filter((id) => id !== exercise.id) : [...current, exercise.id])} />{exercise.name}</label>)}
             </div>
-            <button type="button" disabled={!templateName.trim() || templateExerciseIds.length === 0} onClick={() => { saveTemplates([...templates, { id: crypto.randomUUID(), name: templateName.trim(), sportFolderId: folder.id, exercises: templateExerciseIds.map((exerciseId) => ({ exerciseId, trackingValues: {} })) }]); setTemplateName(''); setTemplateExerciseIds([]); }}>Save template</button>
+            <button type="button" disabled={!templateName.trim() || templateExerciseIds.length === 0} onClick={async () => { const template = await createWorkoutTemplate(templateName.trim(), folder.id, templateExerciseIds.map((exerciseId) => ({ exerciseId, trackingValues: {} }))); setTemplates((items) => [...items, template]); setTemplateName(''); setTemplateExerciseIds([]); }}>Save template</button>
           </div>
           <ul className="template-list">
-            {templates.filter((template) => template.sportFolderId === folder.id).map((template) => <li key={template.id}><div><strong>{template.name}</strong><span>{template.exercises.map((entry) => exercises.find((exercise) => exercise.id === entry.exerciseId)?.name).filter(Boolean).join(', ')}</span></div><button className="danger-button" type="button" onClick={() => saveTemplates(templates.filter((item) => item.id !== template.id))}>Delete</button></li>)}
+            {templates.filter((template) => template.sportFolderId === folder.id).map((template) => (
+              <li key={template.id} className="template-list-item">
+                {editingTemplateId === template.id ? (
+                  <div className="template-editor">
+                    <input value={editingTemplateName} onChange={(event) => setEditingTemplateName(event.target.value)} aria-label="Template name" />
+                    {editingTemplateExercises.map((entry, index) => {
+                      const exercise = exercises.find((item) => item.id === entry.exerciseId);
+                      return <div className="template-editor-exercise" key={entry.exerciseId}>
+                        <div><strong>{exercise?.name ?? 'Unknown exercise'}</strong><span>
+                          <button type="button" disabled={index === 0} onClick={() => moveTemplateExercise(index, -1)}>↑</button>
+                          <button type="button" disabled={index === editingTemplateExercises.length - 1} onClick={() => moveTemplateExercise(index, 1)}>↓</button>
+                          <button type="button" onClick={() => setEditingTemplateExercises((items) => items.filter((item) => item.exerciseId !== entry.exerciseId))}>Remove</button>
+                        </span></div>
+                        <div className="template-suggested-values">
+                          {(exercise?.trackingFields ?? []).map((field) => <label key={field}>{field}
+                            <input value={entry.trackingValues[field] ?? ''} placeholder="Suggested value" onChange={(event) => updateTemplateValue(entry.exerciseId, field, event.target.value)} />
+                          </label>)}
+                        </div>
+                      </div>;
+                    })}
+                    <div className="template-editor-add">
+                      <select defaultValue="" onChange={(event) => {
+                        const exerciseId = Number(event.target.value);
+                        if (exerciseId && !editingTemplateExercises.some((item) => item.exerciseId === exerciseId)) {
+                          setEditingTemplateExercises((items) => [...items, { exerciseId, trackingValues: {} }]);
+                        }
+                        event.currentTarget.value = '';
+                      }}>
+                        <option value="">Add an exercise</option>
+                        {exercises.filter((exercise) => !editingTemplateExercises.some((item) => item.exerciseId === exercise.id)).map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.name}</option>)}
+                      </select>
+                      <button type="button" onClick={() => void saveTemplateEdits()}>Save changes</button>
+                      <button className="secondary-button" type="button" onClick={() => setEditingTemplateId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div><strong>{template.name}</strong><span>{template.exercises.map((entry) => exercises.find((exercise) => exercise.id === entry.exerciseId)?.name).filter(Boolean).join(', ')}</span></div>
+                    <div className="template-actions"><button type="button" onClick={() => startEditingTemplate(template)}>Edit</button><button className="danger-button" type="button" onClick={async () => { await deleteWorkoutTemplate(template.id); setTemplates((items) => items.filter((item) => item.id !== template.id)); }}>Delete</button></div>
+                  </>
+                )}
+              </li>
+            ))}
           </ul>
         </section>
       )}
