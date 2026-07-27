@@ -49,6 +49,17 @@ function getMonthDates(date: Date): [Date, Date] {
   ];
 }
 
+function getMonthGridDates(date: Date, firstDay: number): [Date, Date] {
+  const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const offset = (firstOfMonth.getDay() - firstDay + 7) % 7;
+  const firstVisibleDate = new Date(firstOfMonth);
+  firstVisibleDate.setDate(firstVisibleDate.getDate() - offset);
+  const lastVisibleDate = new Date(firstVisibleDate);
+  lastVisibleDate.setDate(lastVisibleDate.getDate() + 41);
+
+  return [firstVisibleDate, lastVisibleDate];
+}
+
 function formatDateForApi(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -245,7 +256,7 @@ function DashboardPage() {
             try {
             const [startDate, endDate] = calendarView === 'timeGridWeek'
                 ? [weekDates[0], weekDates[6]]
-                : getMonthDates(selectedDate);
+                : getMonthGridDates(selectedDate, weekStartsOn);
 
             const loadedSessions = await getTrainingSessions(
                 formatDateForApi(startDate),
@@ -261,7 +272,7 @@ function DashboardPage() {
         }
 
         loadTrainingSessions();
-    }, [selectedDate, calendarView]);
+    }, [selectedDate, calendarView, weekStartsOn]);
 
     useEffect(() => {
       const [startDate, endDate] = (() => {
