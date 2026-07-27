@@ -8,6 +8,7 @@ import timeGridPlugin from '@fullcalendar/react/timegrid';
 import type { TrainingSession } from '../types/trainingSession';
 import '@fullcalendar/react/skeleton.css';
 import '@fullcalendar/react/themes/monarch/theme.css';
+import '@fullcalendar/react/themes/monarch/palettes/purple.css';
 import dayGridPlugin from '@fullcalendar/react/daygrid';
 
 interface TrainingCalendarProps {
@@ -73,7 +74,12 @@ function TrainingCalendar({
         start: session.sessionDate,
         allDay: true,
         color: session.sportFolderColor,
-        extendedProps: { exerciseTooltip: formatExerciseTooltip(session) },
+        textColor: '#ffffff',
+        classNames: ['training-calendar-event'],
+        extendedProps: {
+          exerciseTooltip: formatExerciseTooltip(session),
+          eventColor: session.sportFolderColor,
+        },
       };
     }
 
@@ -83,7 +89,12 @@ function TrainingCalendar({
       start: `${session.sessionDate}T${session.startTime}`,
       end: `${session.sessionDate}T${session.endTime}`,
       color: session.sportFolderColor,
-      extendedProps: { exerciseTooltip: formatExerciseTooltip(session) },
+      textColor: '#ffffff',
+      classNames: ['training-calendar-event'],
+      extendedProps: {
+        exerciseTooltip: formatExerciseTooltip(session),
+        eventColor: session.sportFolderColor,
+      },
     };
   });
 
@@ -97,6 +108,10 @@ function TrainingCalendar({
       events={events}
       eventDisplay="block"
       headerToolbar={false}
+      allDaySlot={false}
+      slotDuration="00:30:00"
+      scrollTime="07:00:00"
+      dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
       eventContent={(eventInfo) => (
         <div className="calendar-event-content">
           {eventInfo.view.type !== 'dayGridMonth' && (
@@ -120,6 +135,16 @@ function TrainingCalendar({
         });
       }}
       eventMouseLeave={() => setExerciseTooltip(null)}
+      eventDidMount={(mountInfo) => {
+        const eventColor = String(mountInfo.event.extendedProps.eventColor);
+
+        mountInfo.el.style.setProperty('background-color', eventColor, 'important');
+        mountInfo.el.style.setProperty('border-color', eventColor, 'important');
+        mountInfo.el.style.setProperty('color', '#ffffff', 'important');
+        mountInfo.el.querySelectorAll('*').forEach((element) => {
+          (element as HTMLElement).style.setProperty('color', '#ffffff', 'important');
+        });
+      }}
       selectable={view === 'timeGridWeek'}
       selectMirror
       nowIndicator

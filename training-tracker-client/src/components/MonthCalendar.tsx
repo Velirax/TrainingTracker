@@ -87,7 +87,7 @@ function MonthCalendar({
                 {date.getDate()}
               </span>
 
-              {daySessions.map((session) => (
+              {daySessions.slice(0, 3).map((session) => (
                 <button
                   key={session.id}
                   className="month-calendar-session"
@@ -95,10 +95,19 @@ function MonthCalendar({
                   type="button"
                   data-exercise-tooltip={formatExerciseTooltip(session)}
                   onClick={() => onSessionClick(session.id)}
+                  aria-label={`${session.title}, ${session.startTime.slice(0, 5)}`}
                 >
-                  {session.sportFolderIcon} {session.title}
+                  <span className="month-calendar-session-time">
+                    {session.startTime.slice(0, 5)}
+                  </span>
+                  <span>{session.title}</span>
                 </button>
               ))}
+              {daySessions.length > 3 && (
+                <span className="month-calendar-more-sessions">
+                  +{daySessions.length - 3} more
+                </span>
+              )}
             </div>
           );
         })}
