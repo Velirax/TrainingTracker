@@ -31,6 +31,7 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, 
           <div><dt>When</dt><dd>{session.sessionDate} · {session.startTime.slice(0, 5)}–{session.endTime.slice(0, 5)}</dd></div>
           <div><dt>Type</dt><dd>{session.sessionType}</dd></div>
           <div><dt>Status</dt><dd>{session.status}</dd></div>
+          {session.recurrenceGroupId && <div><dt>Schedule</dt><dd>Weekly recurring session</dd></div>}
           {session.rating && <div><dt>Rating</dt><dd>{session.rating}/5</dd></div>}
           {session.notes && <div className="session-details-notes"><dt>Notes</dt><dd>{session.notes}</dd></div>}
         </dl>

@@ -100,6 +100,7 @@ public class TrainingSessionsController : ControllerBase
                 Status = session.Status,
                 Rating = session.Rating,
                 Notes = session.Notes,
+                RecurrenceGroupId = session.RecurrenceGroupId,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -142,6 +143,7 @@ public class TrainingSessionsController : ControllerBase
                 Status = session.Status,
                 Rating = session.Rating,
                 Notes = session.Notes,
+                RecurrenceGroupId = session.RecurrenceGroupId,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -209,6 +211,7 @@ public class TrainingSessionsController : ControllerBase
             Status = createDto.Status,
             Rating = createDto.Rating,
             Notes = createDto.Notes,
+            RecurrenceGroupId = createDto.RecurrenceGroupId,
             Exercises = exerciseEntryResult.Entries,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -233,6 +236,7 @@ public class TrainingSessionsController : ControllerBase
             Status = trainingSession.Status,
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
+            RecurrenceGroupId = trainingSession.RecurrenceGroupId,
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
@@ -316,6 +320,7 @@ public class TrainingSessionsController : ControllerBase
         trainingSession.Status = updateDto.Status;
         trainingSession.Rating = updateDto.Rating;
         trainingSession.Notes = updateDto.Notes;
+        trainingSession.RecurrenceGroupId = updateDto.RecurrenceGroupId;
         trainingSession.UpdatedAt = DateTime.UtcNow;
 
         if (exerciseEntries is not null)
@@ -342,6 +347,7 @@ public class TrainingSessionsController : ControllerBase
             Status = trainingSession.Status,
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
+            RecurrenceGroupId = trainingSession.RecurrenceGroupId,
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt

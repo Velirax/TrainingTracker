@@ -264,6 +264,10 @@ function SessionDialog({
     setIsSaving(true);
 
     try {
+      const occurrences = Math.min(Math.max(Number(repeatCount) || 1, 1), 52);
+      const recurrenceGroupId = occurrences > 1
+        ? sourceSession?.recurrenceGroupId ?? crypto.randomUUID()
+        : sourceSession?.recurrenceGroupId ?? null;
       const request = {
         sportFolderId: Number(selectedSportFolderId),
         title,
@@ -274,6 +278,7 @@ function SessionDialog({
         status: sessionStatus,
         rating: rating ? Number(rating) : null,
         notes: notes || null,
+        recurrenceGroupId,
         exercises: sessionExercises,
       };
 
@@ -286,8 +291,6 @@ function SessionDialog({
       } else {
         onCreated(savedSession);
       }
-
-      const occurrences = Math.min(Math.max(Number(repeatCount) || 1, 1), 52);
 
       for (let occurrence = 1; occurrence < occurrences; occurrence += 1) {
         const repeatedDate = new Date(`${sessionDate}T12:00:00`);

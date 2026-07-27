@@ -31,5 +31,8 @@ public class CreateTrainingSessionDto
     [StringLength(2000)]
     public string? Notes { get; set; }
 
+    [StringLength(64)]
+    public string? RecurrenceGroupId { get; set; }
+
     public List<CreateTrainingSessionExerciseDto> Exercises { get; set; } = [];
 }
