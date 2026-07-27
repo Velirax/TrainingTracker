@@ -60,6 +60,7 @@ public class TrainingSessionsController : ControllerBase
                 Status = session.Status,
                 Rating = session.Rating,
                 Notes = session.Notes,
+                RecurrenceGroupId = session.RecurrenceGroupId,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
