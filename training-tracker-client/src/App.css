@@ -837,6 +837,24 @@ li {
   font-weight: 500;
 }
 
+.training-goals {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) 76px minmax(80px, 1fr) auto minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.training-goal-heading h3 { margin: 0; font-size: 14px; }
+.training-goal-heading span { display: block; margin-top: 2px; color: var(--text); font-size: 11px; }
+.training-goals label { display: grid; gap: 3px; color: var(--text); font-size: 11px; font-weight: 700; }
+.training-goals input { padding: 5px 7px; font-size: 12px; }
+.training-goals strong { color: var(--text-h); font-size: 12px; white-space: nowrap; }
+.goal-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #e5eeee; }
+.goal-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 180ms ease; }
+
 .upcoming-sessions { margin: 0; padding: 2px 0 0 24px; border: 0; border-left: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; }
 
 .upcoming-sessions h2 {
@@ -889,6 +907,18 @@ li {
 
   .upcoming-sessions ul {
     grid-template-columns: 1fr;
+  }
+
+  .training-goals {
+    grid-template-columns: 1fr 72px;
+  }
+
+  .training-goal-heading {
+    grid-column: 1 / -1;
+  }
+
+  .goal-progress {
+    grid-column: 1 / -1;
   }
 
   .session-filter-bar {

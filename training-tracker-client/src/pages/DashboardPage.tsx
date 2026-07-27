@@ -170,6 +170,8 @@ function DashboardPage() {
     const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
     const [duplicatingSession, setDuplicatingSession] = useState<TrainingSession | null>(null);
     const [sessionsNeedingReview, setSessionsNeedingReview] = useState<TrainingSession[]>([]);
+    const [sessionGoal, setSessionGoal] = useState(() => Number(localStorage.getItem('training-tracker-session-goal') ?? '3'));
+    const [minutesGoal, setMinutesGoal] = useState(() => Number(localStorage.getItem('training-tracker-minutes-goal') ?? '180'));
     const filteredSessions = sessions.filter((session) => {
       const matchesSport = !sportFilter || session.sportFolderId === Number(sportFilter);
       const matchesStatus = !statusFilter || session.status === statusFilter;
@@ -198,6 +200,7 @@ function DashboardPage() {
       (total, session) => total + session.durationMinutes,
       0,
     );
+    const completedTrainingMinutes = completedSessions.reduce((total, session) => total + session.durationMinutes, 0);
     const now = new Date();
     const upcomingSessions = upcomingSessionSource
       .filter((session) => session.status === 'Planned')
@@ -213,6 +216,11 @@ function DashboardPage() {
     useEffect(() => {
       getSportFolders().then(setSportFolders).catch(() => setError('Could not load sports.'));
     }, []);
+
+    useEffect(() => {
+      localStorage.setItem('training-tracker-session-goal', String(sessionGoal));
+      localStorage.setItem('training-tracker-minutes-goal', String(minutesGoal));
+    }, [sessionGoal, minutesGoal]);
 
     useEffect(() => {
       getPreferences().then((preferences) => {
@@ -363,6 +371,30 @@ function DashboardPage() {
         setError('Could not delete the training session.');
       }
     }
+    async function handleSessionScheduleChange(sessionId: number, start: Date, end: Date) {
+      const session = sessions.find((item) => item.id === sessionId);
+
+      if (!session) return;
+
+      try {
+        const updated = await updateTrainingSession(session.id, {
+          sportFolderId: session.sportFolderId,
+          title: session.title,
+          sessionDate: formatDateForApi(start),
+          startTime: start.toTimeString().slice(0, 5) + ':00',
+          endTime: end.toTimeString().slice(0, 5) + ':00',
+          sessionType: session.sessionType,
+          status: session.status,
+          rating: session.rating,
+          notes: session.notes,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        });
+        setSessions((items) => items.map((item) => item.id === updated.id ? updated : item));
+        setUpcomingSessionSource((items) => items.map((item) => item.id === updated.id ? updated : item));
+      } catch {
+        setError('Could not reschedule the session.');
+      }
+    }
 
     async function handleSessionCancel(session: TrainingSession) {
       try {
@@ -473,6 +505,24 @@ function DashboardPage() {
               <p>{filteredOverviewSessions.length} matching sessions</p>
             </article>
           </div>
+          <div className="training-goals" aria-label="Training goals">
+            <div className="training-goal-heading">
+              <h3>Goals for this range</h3>
+              <span>Completed sessions and training time</span>
+            </div>
+            <label>
+              Sessions
+              <input type="number" min="1" value={sessionGoal} onChange={(event) => setSessionGoal(Math.max(1, Number(event.target.value) || 1))} />
+            </label>
+            <div className="goal-progress"><span style={{ width: `${Math.min(100, (completedSessions.length / sessionGoal) * 100)}%` }} /></div>
+            <strong>{completedSessions.length} / {sessionGoal}</strong>
+            <label>
+              Minutes
+              <input type="number" min="15" step="15" value={minutesGoal} onChange={(event) => setMinutesGoal(Math.max(15, Number(event.target.value) || 15))} />
+            </label>
+            <div className="goal-progress"><span style={{ width: `${Math.min(100, (completedTrainingMinutes / minutesGoal) * 100)}%` }} /></div>
+            <strong>{completedTrainingMinutes} / {minutesGoal} min</strong>
+          </div>
           </div>
           <aside className="upcoming-sessions">
           <h2>All future sessions</h2>
@@ -565,6 +615,7 @@ function DashboardPage() {
                   onTimeRangeSelect={handleTimeRangeSelect}
                   onTimeRangeClear={handleTimeRangeClear}
                   onSessionClick={handleSessionClick}
+                  onSessionScheduleChange={handleSessionScheduleChange}
                 />
               )}
                 {selectedTimeRange && !isSessionDialogOpen && (

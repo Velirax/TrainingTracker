@@ -17,6 +17,7 @@ interface TrainingCalendarProps {
   onTimeRangeSelect: (start: Date, end: Date) => void;
   onTimeRangeClear: () => void;
   onSessionClick: (sessionId: number) => void;
+  onSessionScheduleChange: (sessionId: number, start: Date, end: Date) => void;
   firstDay?: number;
   view?: 'timeGridWeek' | 'dayGridMonth';
 }
@@ -60,6 +61,7 @@ function TrainingCalendar({
   onTimeRangeSelect,
   onTimeRangeClear,
   onSessionClick,
+  onSessionScheduleChange,
   firstDay = 1,
   view = 'timeGridWeek'
 }: TrainingCalendarProps) {
@@ -146,6 +148,8 @@ function TrainingCalendar({
         });
       }}
       selectable={view === 'timeGridWeek'}
+      editable={view === 'timeGridWeek'}
+      eventDurationEditable={view === 'timeGridWeek'}
       selectMirror
       nowIndicator
       height="auto"
@@ -158,6 +162,24 @@ function TrainingCalendar({
       unselectCancel=".selected-range-actions, .dialog-backdrop"
       eventClick={(clickInfo) => {
         onSessionClick(Number(clickInfo.event.id));
+      }}
+      eventDrop={(changeInfo) => {
+        if (changeInfo.event.start && changeInfo.event.end) {
+          onSessionScheduleChange(
+            Number(changeInfo.event.id),
+            changeInfo.event.start,
+            changeInfo.event.end,
+          );
+        }
+      }}
+      eventResize={(changeInfo) => {
+        if (changeInfo.event.start && changeInfo.event.end) {
+          onSessionScheduleChange(
+            Number(changeInfo.event.id),
+            changeInfo.event.start,
+            changeInfo.event.end,
+          );
+        }
       }}
     />
       {exerciseTooltip && (

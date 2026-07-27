@@ -98,6 +98,7 @@ function SessionDialog({
   const [templateName, setTemplateName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [repeatCount, setRepeatCount] = useState('1');
   const isEditing = sessionToEdit !== undefined;
   
 
@@ -278,6 +279,17 @@ function SessionDialog({
         onUpdated?.(savedSession);
       } else {
         onCreated(savedSession);
+        const occurrences = Math.min(Math.max(Number(repeatCount) || 1, 1), 52);
+
+        for (let occurrence = 1; occurrence < occurrences; occurrence += 1) {
+          const repeatedDate = new Date(`${sessionDate}T12:00:00`);
+          repeatedDate.setDate(repeatedDate.getDate() + occurrence * 7);
+          const repeatedSession = await createTrainingSession({
+            ...request,
+            sessionDate: formatDateForInput(repeatedDate),
+          });
+          onCreated(repeatedSession);
+        }
       }
     } catch {
       setFormError(
@@ -378,6 +390,19 @@ function SessionDialog({
                 <option value="">No rating</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
               </select>
             </div>
+
+            {!isEditing && (
+              <div className="dialog-field">
+                <label htmlFor="dialog-session-repeat">Repeat weekly</label>
+                <select id="dialog-session-repeat" value={repeatCount} onChange={(event) => setRepeatCount(event.target.value)}>
+                  <option value="1">Do not repeat</option>
+                  <option value="2">For 2 weeks</option>
+                  <option value="4">For 4 weeks</option>
+                  <option value="8">For 8 weeks</option>
+                  <option value="12">For 12 weeks</option>
+                </select>
+              </div>
+            )}
 
             <div className="dialog-field dialog-field-wide">
               <label htmlFor="dialog-session-notes">Notes (optional)</label>
