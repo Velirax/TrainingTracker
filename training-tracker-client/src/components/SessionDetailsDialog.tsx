@@ -40,14 +40,20 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onDeleteFutu
         </dl>
 
         <div className="session-details-actions">
-          {session.status === 'Planned' && <button type="button" onClick={onComplete}>Complete session</button>}
-          {session.status === 'Planned' && <button className="secondary-button" type="button" onClick={onCancel}>Cancel session</button>}
-          <button className="secondary-button" type="button" onClick={onDuplicate}>Duplicate</button>
-          <button className="secondary-button" type="button" onClick={onDuplicateNextWeek}>Duplicate next week</button>
-          <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
-          {!session.recurrenceGroupId && <button className="secondary-button" type="button" onClick={onMakeRecurring}>Make recurring</button>}
-          <button className="danger-button" type="button" onClick={onDelete}>Delete</button>
-          {session.recurrenceGroupId && <button className="danger-button" type="button" onClick={onDeleteFuture}>Delete this and future</button>}
+          <div className="session-primary-actions">
+            {session.status === 'Planned' && <button type="button" onClick={onComplete}>Complete</button>}
+            {session.status === 'Planned' && <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>}
+            <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
+          </div>
+          <div className="session-duplicate-actions">
+            <button className="secondary-button" type="button" onClick={onDuplicate}>Duplicate</button>
+            <button className="secondary-button" type="button" onClick={onDuplicateNextWeek}>Next week</button>
+            {!session.recurrenceGroupId && <button className="secondary-button" type="button" onClick={onMakeRecurring}>Make recurring</button>}
+          </div>
+          <div className="session-danger-actions">
+            <button className="danger-button" type="button" onClick={onDelete}>Delete</button>
+            {session.recurrenceGroupId && <button className="danger-button" type="button" onClick={onDeleteFuture}>Delete this and future</button>}
+          </div>
         </div>
 
         {session.exercises.length > 0 && (

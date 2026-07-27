@@ -1197,16 +1197,10 @@ li {
 
 .session-dialog-header > h2 { min-width: 0; }
 
-.session-details-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 20px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.session-details-actions .danger-button { margin-left: auto; }
+.session-details-actions { display: grid; gap: 8px; margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--border); }
+.session-primary-actions, .session-duplicate-actions, .session-danger-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.session-details-actions button { width: 100%; min-height: 36px; padding: 7px 8px; font-size: 12px; }
+.session-danger-actions { grid-template-columns: minmax(0, .8fr) minmax(0, 1.6fr); padding-top: 8px; border-top: 1px solid var(--border); }
 .recurrence-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 20px; }
 .recurrence-options button { width: 100%; }
 
