@@ -1635,6 +1635,14 @@ li {
   line-height: 1.25;
 }
 
+.month-calendar-recurring {
+  opacity: 0.78;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .month-calendar-session:hover {
   filter: brightness(0.94);
   transform: none;

@@ -101,6 +101,7 @@ function MonthCalendar({
                     {session.startTime.slice(0, 5)}
                   </span>
                   <span className="month-calendar-session-title">{session.title}</span>
+                  {session.recurrenceGroupId && <span className="month-calendar-recurring">Weekly</span>}
                 </button>
               ))}
               {daySessions.length > 3 && (
