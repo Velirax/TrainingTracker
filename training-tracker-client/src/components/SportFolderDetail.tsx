@@ -111,7 +111,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
   const [name, setName] = useState(folder.name);
   const [description, setDescription] = useState(folder.description ?? '');
   const [color, setColor] = useState(folder.color);
-  const [icon, setIcon] = useState(folder.icon ?? '');
+  const [icon] = useState(folder.icon ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [exerciseName, setExerciseName] = useState('');
   const [exerciseDescription, setExerciseDescription] = useState('');
@@ -419,18 +419,13 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
             <textarea id="edit-sport-description" value={description} onChange={(event) => setDescription(event.target.value)} />
             <label htmlFor="edit-sport-color">Color</label>
             <input id="edit-sport-color" type="color" value={color} onChange={(event) => setColor(event.target.value)} />
-            <label htmlFor="edit-sport-icon">Icon</label>
-            <input id="edit-sport-icon" value={icon} onChange={(event) => setIcon(event.target.value)} />
-            <button disabled={isSaving} type="submit">Save changes</button>
+            <div className="sport-detail-actions"><button disabled={isSaving} type="submit">Save changes</button><button className="secondary-button" type="button" onClick={() => setIsEditing(false)}>Cancel</button></div>
           </form>
         ) : (
           <>
             <span className="page-kicker">Sport library</span>
             <h1><span className="sport-detail-mark">{folder.name.charAt(0)}</span>{folder.name}</h1>
             {folder.description && <p>{folder.description}</p>}
-            <div className="sport-detail-actions">
-              <button type="button" onClick={() => setIsEditing(true)}>Edit sport</button>
-            </div>
           </>
         )}
         {error && <p role="alert">{error}</p>}
