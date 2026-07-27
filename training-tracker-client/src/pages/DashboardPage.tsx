@@ -16,6 +16,7 @@ import SessionDetailsDialog from '../components/SessionDetailsDialog';
 import SessionDialog from '../components/SessionDialog';
 import SessionReviewDialog from '../components/SessionReviewDialog';
 import CompleteSessionDialog from '../components/CompleteSessionDialog';
+import RecurrenceDialog from '../components/RecurrenceDialog';
 
 const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -171,6 +172,7 @@ function DashboardPage() {
     const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
     const [duplicatingSession, setDuplicatingSession] = useState<TrainingSession | null>(null);
     const [sessionsNeedingReview, setSessionsNeedingReview] = useState<TrainingSession[]>([]);
+    const [recurrenceSource, setRecurrenceSource] = useState<TrainingSession | null>(null);
     const [sessionGoal, setSessionGoal] = useState(() => Number(localStorage.getItem('training-tracker-session-goal') ?? '3'));
     const [minutesGoal, setMinutesGoal] = useState(() => Number(localStorage.getItem('training-tracker-minutes-goal') ?? '180'));
     const filteredSessions = sessions.filter((session) => {
@@ -381,6 +383,28 @@ function DashboardPage() {
         setUpcomingSessionSource((items) => items.filter((item) => item.recurrenceGroupId !== session.recurrenceGroupId || item.sessionDate < cutoff));
         setSelectedSession(null);
       } catch { setError('Could not delete future recurring sessions.'); }
+    }
+    async function createRecurrence(session: TrainingSession, occurrences: number) {
+      const recurrenceGroupId = crypto.randomUUID();
+      try {
+        const baseRequest = {
+          sportFolderId: session.sportFolderId, title: session.title, sessionDate: session.sessionDate,
+          startTime: session.startTime, endTime: session.endTime, sessionType: session.sessionType,
+          status: session.status, rating: session.rating, notes: session.notes,
+          recurrenceGroupId,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        };
+        const groupedSource = await updateTrainingSession(session.id, baseRequest);
+        const futureSessions: TrainingSession[] = [];
+        for (let index = 1; index < occurrences; index += 1) {
+          const date = new Date(`${session.sessionDate}T12:00:00`);
+          date.setDate(date.getDate() + index * 7);
+          futureSessions.push(await createTrainingSession({ ...baseRequest, sessionDate: formatDateForApi(date), status: 'Planned', rating: null }));
+        }
+        setSessions((items) => items.map((item) => item.id === groupedSource.id ? groupedSource : item).concat(futureSessions));
+        setUpcomingSessionSource((items) => items.map((item) => item.id === groupedSource.id ? groupedSource : item).concat(futureSessions));
+        setRecurrenceSource(null);
+      } catch { setError('Could not create the recurring sessions.'); }
     }
     async function handleSessionScheduleChange(sessionId: number, start: Date, end: Date) {
       const session = sessions.find((item) => item.id === sessionId);
@@ -723,8 +747,11 @@ function DashboardPage() {
                     onComplete={() => { setSessionToComplete(selectedSession); setSelectedSession(null); }}
                     onCancel={() => void handleSessionCancel(selectedSession)}
                     onDuplicate={() => { setDuplicatingSession(selectedSession); setSelectedSession(null); }}
+                    onMakeRecurring={() => { setRecurrenceSource(selectedSession); setSelectedSession(null); }}
                   />
                 )}
+
+                {recurrenceSource && <RecurrenceDialog title={recurrenceSource.title} onClose={() => setRecurrenceSource(null)} onCreate={(occurrences) => void createRecurrence(recurrenceSource, occurrences)} />}
 
                 {duplicatingSession && (
                   <SessionDialog

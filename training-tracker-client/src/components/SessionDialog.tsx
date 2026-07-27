@@ -404,10 +404,8 @@ function SessionDialog({
               </select>
             </div>
 
-            <div className="dialog-field">
-              <label htmlFor="dialog-session-repeat">
-                {isEditing ? 'Create future weekly sessions' : 'Repeat weekly'}
-              </label>
+            {!isEditing && <div className="dialog-field">
+              <label htmlFor="dialog-session-repeat">Repeat weekly</label>
               <select id="dialog-session-repeat" value={repeatCount} onChange={(event) => setRepeatCount(event.target.value)}>
                 <option value="1">Do not repeat</option>
                 <option value="2">For 2 weeks</option>
@@ -416,6 +414,7 @@ function SessionDialog({
                 <option value="12">For 12 weeks</option>
               </select>
             </div>
+            }
 
             <div className="dialog-field dialog-field-wide">
               <label htmlFor="dialog-session-notes">Notes (optional)</label>
