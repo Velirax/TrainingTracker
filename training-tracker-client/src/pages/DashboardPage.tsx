@@ -3,6 +3,7 @@ import {
   deleteTrainingSession,
   getTrainingSessions,
   getSessionsNeedingReview,
+  updateTrainingSession,
 } from '../services/trainingSessionService';
 import { getSportFolders } from '../services/sportFolderService';
 import type { SportFolder } from '../types/sportFolder';
@@ -12,6 +13,7 @@ import MonthCalendar from '../components/MonthCalendar';
 import SessionDetailsDialog from '../components/SessionDetailsDialog';
 import SessionDialog from '../components/SessionDialog';
 import SessionReviewDialog from '../components/SessionReviewDialog';
+import CompleteSessionDialog from '../components/CompleteSessionDialog';
 
 const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -146,6 +148,7 @@ function DashboardPage() {
     const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
     const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
+    const [sessionToComplete, setSessionToComplete] = useState<TrainingSession | null>(null);
     const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
     const [sessionsNeedingReview, setSessionsNeedingReview] = useState<TrainingSession[]>([]);
     const filteredSessions = sessions.filter((session) => {
@@ -333,12 +336,17 @@ function DashboardPage() {
     }
     return (
     <main className="calendar-page">
-        <header className="page-header">
-          <span className="page-kicker">Training planner</span>
-          <h1>Training calendar</h1>
-          <p>Plan your sessions, review your workload, and keep your training moving.</p>
-        </header>
-        <section className="session-filter-bar" aria-label="Session filters">
+        <div className="dashboard-intro">
+          <header className="page-header">
+            <span className="page-kicker">Your training space</span>
+            <div className="calendar-hero-copy">
+              <div>
+                <h1><span>Plan</span> your training.</h1>
+                <p>Build a routine, log the work, and see what is ahead.</p>
+              </div>
+            </div>
+          </header>
+          <section className="session-filter-bar" aria-label="Session filters">
           <input
             aria-label="Search sessions or exercises"
             placeholder="Search sessions or exercises"
@@ -356,8 +364,10 @@ function DashboardPage() {
             <option value="">All types</option><option>Practice</option><option>Workout</option><option>Match</option><option>Cardio</option><option>Recovery</option><option>Other</option>
           </select>
           {(searchTerm || sportFilter || statusFilter || typeFilter) && <button className="secondary-button" type="button" onClick={() => { setSearchTerm(''); setSportFilter(''); setStatusFilter(''); setTypeFilter(''); }}>Clear filters</button>}
-        </section>
-        <section className="dashboard-overview">
+          </section>
+        </div>
+        <section className="dashboard-summary">
+          <div className="dashboard-overview">
           <h2>
             Training overview
           </h2>
@@ -412,8 +422,8 @@ function DashboardPage() {
               <p>{filteredOverviewSessions.length} matching sessions</p>
             </article>
           </div>
-        </section>
-        <section className="upcoming-sessions">
+          </div>
+          <aside className="upcoming-sessions">
           <h2>All future sessions</h2>
           {upcomingSessions.length === 0 ? (
             <p>No planned sessions in this period.</p>
@@ -437,8 +447,9 @@ function DashboardPage() {
               ))}
             </ul>
           )}
+          </aside>
         </section>
-        <section>
+        <section className="calendar-surface">
         <div className="calendar-toolbar">
         <h2>
             {calendarView === 'dayGridMonth'
@@ -592,6 +603,33 @@ function DashboardPage() {
                       setSelectedSession(null);
                     }}
                     onDelete={() => handleSessionDelete(selectedSession)}
+                    onComplete={() => { setSessionToComplete(selectedSession); setSelectedSession(null); }}
+                  />
+                )}
+
+                {sessionToComplete && (
+                  <CompleteSessionDialog
+                    session={sessionToComplete}
+                    onClose={() => setSessionToComplete(null)}
+                    onComplete={async (rating, notes, exercises) => {
+                      try {
+                        const completedSession = await updateTrainingSession(sessionToComplete.id, {
+                          sportFolderId: sessionToComplete.sportFolderId,
+                          title: sessionToComplete.title,
+                          sessionDate: sessionToComplete.sessionDate,
+                          startTime: sessionToComplete.startTime,
+                          endTime: sessionToComplete.endTime,
+                          sessionType: sessionToComplete.sessionType,
+                          status: 'Completed',
+                          rating,
+                          notes,
+                          exercises: exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+                        });
+                        setSessions((items) => items.map((item) => item.id === completedSession.id ? completedSession : item));
+                        setUpcomingSessionSource((items) => items.map((item) => item.id === completedSession.id ? completedSession : item));
+                        setSessionToComplete(null);
+                      } catch { setError('Could not complete the training session.'); }
+                    }}
                   />
                 )}
 

@@ -5,9 +5,10 @@ interface SessionDetailsDialogProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onComplete: () => void;
 }
 
-function SessionDetailsDialog({ session, onClose, onEdit, onDelete }: SessionDetailsDialogProps) {
+function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete }: SessionDetailsDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section
@@ -18,16 +19,9 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete }: SessionDet
       >
         <div className="session-dialog-header">
           <h2 id="session-details-title">{session.title}</h2>
-          <button type="button" onClick={onEdit}>
-            Edit
-          </button>
-          <button type="button" onClick={onDelete}>
-            Delete
-          </button>
           <button aria-label="Close session details" type="button" onClick={onClose}>
             Close
           </button>
-
         </div>
 
         <dl className="session-details">
@@ -38,6 +32,12 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete }: SessionDet
           {session.rating && <div><dt>Rating</dt><dd>{session.rating}/5</dd></div>}
           {session.notes && <div className="session-details-notes"><dt>Notes</dt><dd>{session.notes}</dd></div>}
         </dl>
+
+        <div className="session-details-actions">
+          {session.status === 'Planned' && <button type="button" onClick={onComplete}>Complete session</button>}
+          <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
+          <button className="danger-button" type="button" onClick={onDelete}>Delete</button>
+        </div>
 
         {session.exercises.length > 0 && (
           <section className="session-details-exercises">

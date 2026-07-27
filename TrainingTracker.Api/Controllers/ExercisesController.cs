@@ -136,6 +136,11 @@ public class ExercisesController : ControllerBase
             return NotFound();
         }
 
+        if (exercise.UserId != CurrentUserId)
+        {
+            return NotFound();
+        }
+
         if (exercise.IsBuiltIn)
         {
             return BadRequest(new
@@ -170,6 +175,11 @@ public class ExercisesController : ControllerBase
         var exercise = await _dbContext.Exercises.FindAsync(id);
 
         if (exercise is null)
+        {
+            return NotFound();
+        }
+
+        if (exercise.UserId != CurrentUserId)
         {
             return NotFound();
         }

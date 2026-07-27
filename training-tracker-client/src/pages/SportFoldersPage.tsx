@@ -1,8 +1,24 @@
-import { useEffect, useState } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import '../App.css';
+import sportHoverSprite from '../assets/sport-hover-sprite.png';
 import SportFolderDetail from '../components/SportFolderDetail';
 import { getSportFolders } from '../services/sportFolderService';
 import type { SportFolder } from '../types/sportFolder';
+
+const sportImagePositions: Record<string, string> = {
+  Tennis: '0% 0%',
+  Padel: '50% 0%',
+  Basketball: '100% 0%',
+  Calisthenics: '0% 50%',
+  Cycling: '50% 50%',
+  Football: '100% 50%',
+  Hiking: '0% 100%',
+  Walking: '50% 100%',
+  Yoga: '100% 100%',
+  Gym: '0% 50%',
+  Running: '50% 100%',
+  Swimming: '100% 100%',
+};
 
 function SportFoldersPage() {
   const [sports, setSports] = useState<SportFolder[]>([]);
@@ -53,11 +69,11 @@ function SportFoldersPage() {
       first.name.localeCompare(second.name));
 
   return (
-    <main>
+    <main className="sports-page">
       <header className="page-header">
-        <span className="page-kicker">Your training library</span>
-        <h1>Sports</h1>
-        <p>Explore sessions, exercises, and progress for every sport.</p>
+        <span className="page-kicker">Training library</span>
+        <h1><span>Explore</span> your sports.</h1>
+        <p>Sessions, exercises, and progress for every way you train.</p>
       </header>
 
       <section className="sport-catalog-section">
@@ -71,14 +87,23 @@ function SportFoldersPage() {
         ) : (
           <ul className="sport-catalog-list">
             {activeSports.map((sport) => (
-              <li key={sport.id}>
+              <li
+                key={sport.id}
+                style={{
+                  '--sport-color': sport.color,
+                  '--sport-background': `url(${sportHoverSprite})`,
+                  '--sport-background-position': sportImagePositions[sport.name] ?? '50% 50%',
+                } as CSSProperties}
+              >
                 <button
                   className="sport-folder-button"
-                  style={{ color: sport.color }}
                   type="button"
                   onClick={() => setSelectedSport(sport)}
                 >
-                  <span>{sport.icon} {sport.name}</span>
+                  <span className="sport-card-title">
+                    <i aria-hidden="true">{sport.name.charAt(0)}</i>
+                    {sport.name}
+                  </span>
                   <small>
                     {sport.sessionCount} {sport.sessionCount === 1 ? 'session' : 'sessions'}
                   </small>
