@@ -4,6 +4,7 @@ interface MonthCalendarProps {
   selectedDate: Date;
   sessions: TrainingSession[];
   onSessionClick: (sessionId: number) => void;
+  firstDay?: number;
 }
 
 const weekdayFormatter = new Intl.DateTimeFormat('en-US', {
@@ -18,16 +19,16 @@ function formatDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function getMonthGridDates(selectedDate: Date): Date[] {
+function getMonthGridDates(selectedDate: Date, firstDay: number): Date[] {
   const firstDayOfMonth = new Date(
     selectedDate.getFullYear(),
     selectedDate.getMonth(),
     1,
   );
-  const daysSinceMonday = (firstDayOfMonth.getDay() + 6) % 7;
+  const daysSinceFirstDay = (firstDayOfMonth.getDay() - firstDay + 7) % 7;
   const firstGridDay = new Date(firstDayOfMonth);
 
-  firstGridDay.setDate(firstGridDay.getDate() - daysSinceMonday);
+  firstGridDay.setDate(firstGridDay.getDate() - daysSinceFirstDay);
 
   return Array.from({ length: 42 }, (_, index) => {
     const day = new Date(firstGridDay);
@@ -55,8 +56,9 @@ function MonthCalendar({
   selectedDate,
   sessions,
   onSessionClick,
+  firstDay = 1,
 }: MonthCalendarProps) {
-  const dates = getMonthGridDates(selectedDate);
+  const dates = getMonthGridDates(selectedDate, firstDay);
   const weekdays = dates.slice(0, 7);
   const todayKey = formatDateKey(new Date());
 

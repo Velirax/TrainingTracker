@@ -100,6 +100,14 @@ function formatDateForComparison(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function exportExerciseLogs(name: string, entries: { session: TrainingSession; exercise: NonNullable<TrainingSession['exercises'][number] | undefined> }[]) {
+  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const rows = entries.map(({ session, exercise }) => [session.sessionDate, session.title, formatTrackingValues(exercise.trackingValues)]);
+  const csv = [['Date', 'Session', 'Values'], ...rows].map((row) => row.map(quote).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a'); link.href = url; link.download = `${name.toLowerCase().replaceAll(' ', '-')}-logs.csv`; link.click(); URL.revokeObjectURL(url);
+}
+
 function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps) {
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -423,7 +431,6 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
           </form>
         ) : (
           <>
-            <span className="page-kicker">Sport library</span>
             <h1><span className="sport-detail-mark">{folder.name.charAt(0)}</span>{folder.name}</h1>
             {folder.description && <p>{folder.description}</p>}
           </>
@@ -687,6 +694,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
               >
                 Clear
               </button>
+              <button className="secondary-button" type="button" onClick={() => exportExerciseLogs(progressExercise.name, progressEntries.filter((entry): entry is { session: TrainingSession; exercise: NonNullable<typeof entry.exercise> } => entry.exercise !== undefined))}>Export CSV</button>
             </div>
             {availableLogMetrics.length > 0 && (
               <div className="exercise-chart">

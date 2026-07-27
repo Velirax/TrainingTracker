@@ -17,6 +17,7 @@ interface SessionDialogProps {
   onClose: () => void;
   onCreated: (session: TrainingSession) => void;
   sessionToEdit?: TrainingSession;
+  sessionToDuplicate?: TrainingSession;
   onUpdated?: (session: TrainingSession) => void;
 }
 
@@ -55,13 +56,15 @@ function SessionDialog({
   onClose,
   onCreated,
   sessionToEdit,
+  sessionToDuplicate,
   onUpdated,
 }: SessionDialogProps) {
   const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
+  const sourceSession = sessionToEdit ?? sessionToDuplicate;
   const [selectedSportFolderId, setSelectedSportFolderId] = useState(
-    sessionToEdit ? String(sessionToEdit.sportFolderId) : '',
+    sourceSession ? String(sourceSession.sportFolderId) : '',
   );
-  const [title, setTitle] = useState(sessionToEdit?.title ?? '');
+  const [title, setTitle] = useState(sourceSession?.title ?? '');
   const [sessionDate, setSessionDate] = useState(
     sessionToEdit?.sessionDate ?? formatDateForInput(start),
   );
@@ -72,19 +75,19 @@ function SessionDialog({
     sessionToEdit?.endTime.slice(0, 5) ?? formatTimeForInput(end),
   );
   const [sessionType, setSessionType] = useState(
-    sessionToEdit?.sessionType ?? 'Practice',
+    sourceSession?.sessionType ?? 'Practice',
   );
   const [sessionStatus, setSessionStatus] = useState(
     sessionToEdit?.status ?? 'Planned',
   );
   const [rating, setRating] = useState(
-    sessionToEdit?.rating ? String(sessionToEdit.rating) : '',
+    sourceSession?.rating ? String(sourceSession.rating) : '',
   );
-  const [notes, setNotes] = useState(sessionToEdit?.notes ?? '');
+  const [notes, setNotes] = useState(sourceSession?.notes ?? '');
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
   const [sessionExercises, setSessionExercises] = useState(
-    sessionToEdit?.exercises.map((exercise) => ({
+    sourceSession?.exercises.map((exercise) => ({
       exerciseId: exercise.exerciseId,
       trackingValues: exercise.trackingValues,
     })) ?? [],
@@ -238,6 +241,16 @@ function SessionDialog({
 
     if (!selectedSportFolderId) {
       setFormError('Choose a sport folder.');
+      return;
+    }
+
+    if (sessionStatus === 'Planned' && sessionDate < formatDateForInput(new Date())) {
+      setFormError('Planned sessions cannot be scheduled in the past.');
+      return;
+    }
+
+    if (endTime <= startTime) {
+      setFormError('End time must be later than start time.');
       return;
     }
 

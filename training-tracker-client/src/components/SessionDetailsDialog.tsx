@@ -7,9 +7,10 @@ interface SessionDetailsDialogProps {
   onDelete: () => void;
   onComplete: () => void;
   onCancel: () => void;
+  onDuplicate: () => void;
 }
 
-function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, onCancel }: SessionDetailsDialogProps) {
+function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, onCancel, onDuplicate }: SessionDetailsDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section
@@ -37,6 +38,7 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, 
         <div className="session-details-actions">
           {session.status === 'Planned' && <button type="button" onClick={onComplete}>Complete session</button>}
           {session.status === 'Planned' && <button className="secondary-button" type="button" onClick={onCancel}>Cancel session</button>}
+          <button className="secondary-button" type="button" onClick={onDuplicate}>Duplicate</button>
           <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
           <button className="danger-button" type="button" onClick={onDelete}>Delete</button>
         </div>

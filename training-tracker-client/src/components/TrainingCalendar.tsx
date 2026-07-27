@@ -16,6 +16,7 @@ interface TrainingCalendarProps {
   onTimeRangeSelect: (start: Date, end: Date) => void;
   onTimeRangeClear: () => void;
   onSessionClick: (sessionId: number) => void;
+  firstDay?: number;
   view?: 'timeGridWeek' | 'dayGridMonth';
 }
 
@@ -58,6 +59,7 @@ function TrainingCalendar({
   onTimeRangeSelect,
   onTimeRangeClear,
   onSessionClick,
+  firstDay = 1,
   view = 'timeGridWeek'
 }: TrainingCalendarProps) {
   const calendarWrapperRef = useRef<HTMLDivElement>(null);
@@ -91,7 +93,7 @@ function TrainingCalendar({
       plugins={[themePlugin, timeGridPlugin, interactionPlugin, dayGridPlugin]}
       initialView={view}
       initialDate={initialDate}
-      firstDay={1}
+      firstDay={firstDay}
       events={events}
       eventDisplay="block"
       headerToolbar={false}

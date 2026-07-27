@@ -1315,6 +1315,7 @@ li {
 .calendar-toolbar h2 { margin: 0; font-size: 20px; }
 
 .calendar-toolbar > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.export-sessions-button { margin-left: 4px; }
 
 .calendar-period-controls { margin-left: auto; }
 
@@ -1427,6 +1428,17 @@ li {
   .dialog-field {
     grid-column: 1 / -1;
   }
+
+  .session-dialog { padding: 16px; border-radius: 14px; }
+  .session-dialog-header { align-items: flex-start; }
+  .session-dialog-header h2 { font-size: 20px; }
+  .session-details-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .session-details-actions button { width: 100%; }
+  .template-suggested-values { grid-template-columns: 1fr; }
+  .template-editor-add { align-items: stretch; flex-direction: column; }
+  .sport-detail-header { padding: 20px; }
+  .sport-detail-header h1 { font-size: 30px; }
+  .exercise-chart-controls { grid-template-columns: 1fr; }
 }
 
 .selected-range-actions {

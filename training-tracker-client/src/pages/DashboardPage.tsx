@@ -26,11 +26,11 @@ const monthFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 });
 
-function getWeekDates(date: Date): Date[] {
+function getWeekDates(date: Date, firstDay = 1): Date[] {
   const startOfWeek = new Date(date);
-  const daysSinceMonday = (startOfWeek.getDay() + 6) % 7;
+  const daysSinceFirstDay = (startOfWeek.getDay() - firstDay + 7) % 7;
 
-  startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
+  startOfWeek.setDate(startOfWeek.getDate() - daysSinceFirstDay);
 
   return Array.from({ length: 7 }, (_, index) => {
     const day = new Date(startOfWeek);
@@ -96,6 +96,21 @@ function formatTrainingTime(totalMinutes: number): string {
   return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
 }
 
+function exportSessionsCsv(sessions: TrainingSession[]) {
+  const escape = (value: string | number | null | undefined) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+  const header = ['Date', 'Start', 'End', 'Sport', 'Title', 'Type', 'Status', 'Rating', 'Notes', 'Exercises'];
+  const rows = sessions.map((session) => [
+    session.sessionDate, session.startTime, session.endTime, session.sportFolderName, session.title,
+    session.sessionType, session.status, session.rating, session.notes,
+    session.exercises.map((exercise) => `${exercise.exerciseName}: ${Object.entries(exercise.trackingValues).filter(([, value]) => value).map(([field, value]) => `${field} ${value}`).join(', ')}`).join(' | '),
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(escape).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url; link.download = `training-sessions-${formatDateForApi(new Date())}.csv`; link.click();
+  URL.revokeObjectURL(url);
+}
+
 function formatExerciseTooltip(session: TrainingSession): string {
   if (session.exercises.length === 0) {
     return 'No exercises logged.';
@@ -132,7 +147,9 @@ function DashboardPage() {
     const [calendarView, setCalendarView] = useState<
       'timeGridWeek' | 'dayGridMonth'
     >('timeGridWeek');
-    const weekDates = getWeekDates(selectedDate);
+    const [weekStartsOn, setWeekStartsOn] = useState(1);
+    const [distanceUnit, setDistanceUnit] = useState<'km' | 'mi'>('km');
+    const weekDates = getWeekDates(selectedDate, weekStartsOn);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
     const [overviewSessions, setOverviewSessions] = useState<TrainingSession[]>([]);
     const [overviewRange, setOverviewRange] = useState<'week' | 'month' | 'year' | 'custom'>('month');
@@ -151,6 +168,7 @@ function DashboardPage() {
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
     const [sessionToComplete, setSessionToComplete] = useState<TrainingSession | null>(null);
     const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
+    const [duplicatingSession, setDuplicatingSession] = useState<TrainingSession | null>(null);
     const [sessionsNeedingReview, setSessionsNeedingReview] = useState<TrainingSession[]>([]);
     const filteredSessions = sessions.filter((session) => {
       const matchesSport = !sportFilter || session.sportFolderId === Number(sportFilter);
@@ -199,6 +217,8 @@ function DashboardPage() {
     useEffect(() => {
       getPreferences().then((preferences) => {
         setCalendarView(preferences.defaultCalendarView === 'month' ? 'dayGridMonth' : 'timeGridWeek');
+        setWeekStartsOn(preferences.weekStartsOn);
+        setDistanceUnit(preferences.distanceUnit);
       }).catch(() => {
         // The calendar remains usable with its week-view default.
       });
@@ -235,7 +255,7 @@ function DashboardPage() {
       const [startDate, endDate] = (() => {
         if (overviewRange === 'custom') return [customOverviewStart, customOverviewEnd];
         if (overviewRange === 'week') {
-          const dates = getWeekDates(selectedDate);
+          const dates = getWeekDates(selectedDate, weekStartsOn);
           return [formatDateForApi(dates[0]), formatDateForApi(dates[6])];
         }
         if (overviewRange === 'year') {
@@ -248,7 +268,7 @@ function DashboardPage() {
       getTrainingSessions(startDate, endDate).then(setOverviewSessions).catch(() => {
         setError('Could not load dashboard metrics.');
       });
-    }, [selectedDate, overviewRange, customOverviewStart, customOverviewEnd]);
+    }, [selectedDate, overviewRange, customOverviewStart, customOverviewEnd, weekStartsOn]);
 
     useEffect(() => {
       async function loadUpcomingSessions() {
@@ -366,7 +386,7 @@ function DashboardPage() {
       }
     }
     return (
-    <main className="calendar-page">
+    <main className="calendar-page" data-distance-unit={distanceUnit}>
         <div className="dashboard-intro">
           <header className="page-header">
             <span className="page-kicker">Your training space</span>
@@ -520,6 +540,7 @@ function DashboardPage() {
               Month
             </button>
         </div>
+        <button className="secondary-button export-sessions-button" type="button" onClick={() => exportSessionsCsv(filteredOverviewSessions)}>Export CSV</button>
         </div>
 
         {isLoading ? (
@@ -531,6 +552,7 @@ function DashboardPage() {
               {calendarView === 'dayGridMonth' ? (
                 <MonthCalendar
                   selectedDate={selectedDate}
+                  firstDay={weekStartsOn}
                   sessions={filteredSessions}
                   onSessionClick={handleSessionClick}
                 />
@@ -538,6 +560,7 @@ function DashboardPage() {
                 <TrainingCalendar
                   key={`${formatDateForApi(selectedDate)}-${sessions.map((session) => `${session.id}-${session.updatedAt}`).join(',')}`}
                   initialDate={selectedDate}
+                  firstDay={weekStartsOn}
                   sessions={filteredSessions}
                   onTimeRangeSelect={handleTimeRangeSelect}
                   onTimeRangeClear={handleTimeRangeClear}
@@ -636,6 +659,21 @@ function DashboardPage() {
                     onDelete={() => handleSessionDelete(selectedSession)}
                     onComplete={() => { setSessionToComplete(selectedSession); setSelectedSession(null); }}
                     onCancel={() => void handleSessionCancel(selectedSession)}
+                    onDuplicate={() => { setDuplicatingSession(selectedSession); setSelectedSession(null); }}
+                  />
+                )}
+
+                {duplicatingSession && (
+                  <SessionDialog
+                    start={new Date(`${duplicatingSession.sessionDate}T${duplicatingSession.startTime}`)}
+                    end={new Date(`${duplicatingSession.sessionDate}T${duplicatingSession.endTime}`)}
+                    sessionToDuplicate={duplicatingSession}
+                    onClose={() => setDuplicatingSession(null)}
+                    onCreated={(createdSession) => {
+                      setSessions((items) => [...items, createdSession]);
+                      setUpcomingSessionSource((items) => [...items, createdSession]);
+                      setDuplicatingSession(null);
+                    }}
                   />
                 )}
 
