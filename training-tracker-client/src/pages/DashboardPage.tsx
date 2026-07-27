@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  createTrainingSession,
   deleteTrainingSession,
   deleteFutureTrainingSessions,
   getTrainingSessions,
