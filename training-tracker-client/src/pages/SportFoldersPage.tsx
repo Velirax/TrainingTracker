@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useState } from 'react';
 import '../App.css';
-import sportHoverSprite from '../assets/sport-hover-sprite.png';
+import sportHoverSprite from '../assets/sport-hover-sprite.jpg';
 import SportFolderDetail from '../components/SportFolderDetail';
 import { getSportFolders } from '../services/sportFolderService';
 import type { SportFolder } from '../types/sportFolder';

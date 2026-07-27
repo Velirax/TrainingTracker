@@ -6,6 +6,7 @@ import {
   updateTrainingSession,
 } from '../services/trainingSessionService';
 import { getSportFolders } from '../services/sportFolderService';
+import { getPreferences } from '../services/profileService';
 import type { SportFolder } from '../types/sportFolder';
 import type { TrainingSession } from '../types/trainingSession';
 import TrainingCalendar from '../components/TrainingCalendar';
@@ -195,6 +196,14 @@ function DashboardPage() {
       getSportFolders().then(setSportFolders).catch(() => setError('Could not load sports.'));
     }, []);
 
+    useEffect(() => {
+      getPreferences().then((preferences) => {
+        setCalendarView(preferences.defaultCalendarView === 'month' ? 'dayGridMonth' : 'timeGridWeek');
+      }).catch(() => {
+        // The calendar remains usable with its week-view default.
+      });
+    }, []);
+
 
     useEffect(() => {
         async function loadTrainingSessions() {
@@ -332,6 +341,28 @@ function DashboardPage() {
         setSelectedSession(null);
       } catch {
         setError('Could not delete the training session.');
+      }
+    }
+
+    async function handleSessionCancel(session: TrainingSession) {
+      try {
+        const cancelled = await updateTrainingSession(session.id, {
+          sportFolderId: session.sportFolderId,
+          title: session.title,
+          sessionDate: session.sessionDate,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          sessionType: session.sessionType,
+          status: 'Cancelled',
+          rating: session.rating,
+          notes: session.notes,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        });
+        setSessions((items) => items.map((item) => item.id === cancelled.id ? cancelled : item));
+        setUpcomingSessionSource((items) => items.map((item) => item.id === cancelled.id ? cancelled : item));
+        setSelectedSession(null);
+      } catch {
+        setError('Could not cancel the training session.');
       }
     }
     return (
@@ -604,6 +635,7 @@ function DashboardPage() {
                     }}
                     onDelete={() => handleSessionDelete(selectedSession)}
                     onComplete={() => { setSessionToComplete(selectedSession); setSelectedSession(null); }}
+                    onCancel={() => void handleSessionCancel(selectedSession)}
                   />
                 )}
 
