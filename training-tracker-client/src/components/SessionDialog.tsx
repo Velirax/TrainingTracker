@@ -279,17 +279,21 @@ function SessionDialog({
         onUpdated?.(savedSession);
       } else {
         onCreated(savedSession);
-        const occurrences = Math.min(Math.max(Number(repeatCount) || 1, 1), 52);
+      }
 
-        for (let occurrence = 1; occurrence < occurrences; occurrence += 1) {
-          const repeatedDate = new Date(`${sessionDate}T12:00:00`);
-          repeatedDate.setDate(repeatedDate.getDate() + occurrence * 7);
-          const repeatedSession = await createTrainingSession({
-            ...request,
-            sessionDate: formatDateForInput(repeatedDate),
-          });
-          onCreated(repeatedSession);
-        }
+      const occurrences = Math.min(Math.max(Number(repeatCount) || 1, 1), 52);
+
+      for (let occurrence = 1; occurrence < occurrences; occurrence += 1) {
+        const repeatedDate = new Date(`${sessionDate}T12:00:00`);
+        repeatedDate.setDate(repeatedDate.getDate() + occurrence * 7);
+        const repeatedSession = await createTrainingSession({
+          ...request,
+          sessionDate: formatDateForInput(repeatedDate),
+          // Future recurrence instances always begin as planned work.
+          status: 'Planned',
+          rating: null,
+        });
+        onCreated(repeatedSession);
       }
     } catch {
       setFormError(
@@ -391,18 +395,18 @@ function SessionDialog({
               </select>
             </div>
 
-            {!isEditing && (
-              <div className="dialog-field">
-                <label htmlFor="dialog-session-repeat">Repeat weekly</label>
-                <select id="dialog-session-repeat" value={repeatCount} onChange={(event) => setRepeatCount(event.target.value)}>
-                  <option value="1">Do not repeat</option>
-                  <option value="2">For 2 weeks</option>
-                  <option value="4">For 4 weeks</option>
-                  <option value="8">For 8 weeks</option>
-                  <option value="12">For 12 weeks</option>
-                </select>
-              </div>
-            )}
+            <div className="dialog-field">
+              <label htmlFor="dialog-session-repeat">
+                {isEditing ? 'Create future weekly sessions' : 'Repeat weekly'}
+              </label>
+              <select id="dialog-session-repeat" value={repeatCount} onChange={(event) => setRepeatCount(event.target.value)}>
+                <option value="1">Do not repeat</option>
+                <option value="2">For 2 weeks</option>
+                <option value="4">For 4 weeks</option>
+                <option value="8">For 8 weeks</option>
+                <option value="12">For 12 weeks</option>
+              </select>
+            </div>
 
             <div className="dialog-field dialog-field-wide">
               <label htmlFor="dialog-session-notes">Notes (optional)</label>
