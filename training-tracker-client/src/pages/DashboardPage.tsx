@@ -214,6 +214,13 @@ function DashboardPage() {
       (total, session) => total + session.durationMinutes,
       0,
     );
+    const completedByDate = Array.from(completedSessions.reduce((totals, session) => {
+      totals.set(session.sessionDate, (totals.get(session.sessionDate) ?? 0) + session.durationMinutes);
+      return totals;
+    }, new Map<string, number>()).entries()).sort(([first], [second]) => first.localeCompare(second));
+    const sportComparison = groupSessionsBySport(completedSessions).slice(0, 5);
+    const maxTrendMinutes = Math.max(...completedByDate.map(([, minutes]) => minutes), 1);
+    const maxSportMinutes = Math.max(...sportComparison.map((sport) => sport.durationMinutes), 1);
     const now = new Date();
     const upcomingSessions = upcomingSessionSource
       .filter((session) => session.status === 'Planned')
@@ -562,6 +569,16 @@ function DashboardPage() {
               <h3>Training time</h3>
               <strong>{formatTrainingTime(totalTrainingMinutes)}</strong>
               <p>{filteredOverviewSessions.length} matching sessions</p>
+            </article>
+          </div>
+          <div className="dashboard-insights">
+            <article>
+              <h3>Completed training trend</h3>
+              {completedByDate.length === 0 ? <p>No completed sessions in this range.</p> : <div className="trend-bars">{completedByDate.map(([date, minutes]) => <div key={date}><span style={{ height: `${Math.max(10, (minutes / maxTrendMinutes) * 100)}%` }} title={`${date}: ${formatTrainingTime(minutes)}`} /><small>{date.slice(5)}</small></div>)}</div>}
+            </article>
+            <article>
+              <h3>Completed time by sport</h3>
+              {sportComparison.length === 0 ? <p>No completed sessions in this range.</p> : <div className="sport-comparison">{sportComparison.map((sport) => <div key={sport.name}><span>{sport.name}</span><i><b style={{ width: `${(sport.durationMinutes / maxSportMinutes) * 100}%`, backgroundColor: sport.color }} /></i><small>{formatTrainingTime(sport.durationMinutes)}</small></div>)}</div>}
             </article>
           </div>
           </div>
