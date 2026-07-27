@@ -9,10 +9,11 @@ interface SessionDetailsDialogProps {
   onComplete: () => void;
   onCancel: () => void;
   onDuplicate: () => void;
+  onDuplicateNextWeek: () => void;
   onMakeRecurring: () => void;
 }
 
-function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onDeleteFuture, onComplete, onCancel, onDuplicate, onMakeRecurring }: SessionDetailsDialogProps) {
+function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onDeleteFuture, onComplete, onCancel, onDuplicate, onDuplicateNextWeek, onMakeRecurring }: SessionDetailsDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section
@@ -42,6 +43,7 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onDeleteFutu
           {session.status === 'Planned' && <button type="button" onClick={onComplete}>Complete session</button>}
           {session.status === 'Planned' && <button className="secondary-button" type="button" onClick={onCancel}>Cancel session</button>}
           <button className="secondary-button" type="button" onClick={onDuplicate}>Duplicate</button>
+          <button className="secondary-button" type="button" onClick={onDuplicateNextWeek}>Duplicate next week</button>
           <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
           {!session.recurrenceGroupId && <button className="secondary-button" type="button" onClick={onMakeRecurring}>Make recurring</button>}
           <button className="danger-button" type="button" onClick={onDelete}>Delete</button>

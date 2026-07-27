@@ -177,6 +177,7 @@ function DashboardPage() {
     const [upcomingSessionSource, setUpcomingSessionSource] = useState<TrainingSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
     const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
@@ -415,8 +416,25 @@ function DashboardPage() {
         }
         setSessions((items) => items.map((item) => item.id === groupedSource.id ? groupedSource : item).concat(futureSessions));
         setUpcomingSessionSource((items) => items.map((item) => item.id === groupedSource.id ? groupedSource : item).concat(futureSessions));
+        setSuccessMessage(`Created ${occurrences - 1} future weekly sessions.`);
         setRecurrenceSource(null);
       } catch { setError('Could not create the recurring sessions.'); }
+    }
+    async function duplicateSessionNextWeek(session: TrainingSession) {
+      const date = new Date(`${session.sessionDate}T12:00:00`);
+      date.setDate(date.getDate() + 7);
+      try {
+        const duplicate = await createTrainingSession({
+          sportFolderId: session.sportFolderId, title: session.title,
+          sessionDate: formatDateForApi(date), startTime: session.startTime, endTime: session.endTime,
+          sessionType: session.sessionType, status: 'Planned', rating: null, notes: session.notes,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        });
+        setSessions((items) => [...items, duplicate]);
+        setUpcomingSessionSource((items) => [...items, duplicate]);
+        setSelectedSession(null);
+        setSuccessMessage('Created a planned copy for next week.');
+      } catch { setError('Could not duplicate the session for next week.'); }
     }
     async function handleSessionScheduleChange(sessionId: number, start: Date, end: Date) {
       const session = sessions.find((item) => item.id === sessionId);
@@ -467,6 +485,7 @@ function DashboardPage() {
     return (
     <main className="calendar-page" data-distance-unit={distanceUnit}>
         <div className="dashboard-intro">
+          {successMessage && <div className="success-message" role="status">{successMessage}<button type="button" onClick={() => setSuccessMessage(null)}>Dismiss</button></div>}
           <header className="page-header">
             <span className="page-kicker">Your training space</span>
             <div className="calendar-hero-copy">
@@ -759,6 +778,7 @@ function DashboardPage() {
                     onComplete={() => { setSessionToComplete(selectedSession); setSelectedSession(null); }}
                     onCancel={() => void handleSessionCancel(selectedSession)}
                     onDuplicate={() => { setDuplicatingSession(selectedSession); setSelectedSession(null); }}
+                    onDuplicateNextWeek={() => void duplicateSessionNextWeek(selectedSession)}
                     onMakeRecurring={() => { setRecurrenceSource(selectedSession); setSelectedSession(null); }}
                   />
                 )}

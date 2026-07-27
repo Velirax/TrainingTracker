@@ -733,6 +733,8 @@ li {
 }
 
 .dashboard-intro .page-header { margin: 0 0 16px; }
+.success-message { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #b9ded7; border-radius: 9px; color: #15564d; background: #edf9f6; font-size: 13px; font-weight: 650; }
+.success-message button { padding: 3px 7px; color: #15564d; background: transparent; font-size: 12px; }
 
 .session-filter-bar {
   display: grid;
