@@ -100,7 +100,7 @@ function MonthCalendar({
                   <span className="month-calendar-session-time">
                     {session.startTime.slice(0, 5)}
                   </span>
-                  <span>{session.title}</span>
+                  <span className="month-calendar-session-title">{session.title}</span>
                 </button>
               ))}
               {daySessions.length > 3 && (

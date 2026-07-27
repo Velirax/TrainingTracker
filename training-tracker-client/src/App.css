@@ -1623,7 +1623,16 @@ li {
 }
 
 .month-calendar-session span:last-child {
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.month-calendar-session-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.25;
 }
 
 .month-calendar-session:hover {
