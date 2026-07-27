@@ -376,6 +376,33 @@ public class TrainingSessionsController : ControllerBase
         return NoContent();
     }
 
+    [HttpDelete("{id:int}/future")]
+    public async Task<IActionResult> DeleteFuture(int id)
+    {
+        var session = await _dbContext.TrainingSessions
+            .FirstOrDefaultAsync(item => item.Id == id && item.UserId == CurrentUserId);
+
+        if (session is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(session.RecurrenceGroupId))
+        {
+            return BadRequest(new { message = "This session is not part of a recurrence." });
+        }
+
+        var futureSessions = await _dbContext.TrainingSessions
+            .Where(item => item.UserId == CurrentUserId &&
+                item.RecurrenceGroupId == session.RecurrenceGroupId &&
+                item.SessionDate >= session.SessionDate)
+            .ToListAsync();
+
+        _dbContext.TrainingSessions.RemoveRange(futureSessions);
+        await _dbContext.SaveChangesAsync();
+        return NoContent();
+    }
+
     private async Task<(List<TrainingSessionExercise> Entries, string? Error)>
         BuildExerciseEntries(
             int sportFolderId,

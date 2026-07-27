@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   deleteTrainingSession,
+  deleteFutureTrainingSessions,
   getTrainingSessions,
   getSessionsNeedingReview,
   updateTrainingSession,
@@ -371,6 +372,16 @@ function DashboardPage() {
         setError('Could not delete the training session.');
       }
     }
+    async function handleFutureSessionDelete(session: TrainingSession) {
+      if (!window.confirm(`Delete "${session.title}" and all future occurrences?`)) return;
+      try {
+        await deleteFutureTrainingSessions(session.id);
+        const cutoff = session.sessionDate;
+        setSessions((items) => items.filter((item) => item.recurrenceGroupId !== session.recurrenceGroupId || item.sessionDate < cutoff));
+        setUpcomingSessionSource((items) => items.filter((item) => item.recurrenceGroupId !== session.recurrenceGroupId || item.sessionDate < cutoff));
+        setSelectedSession(null);
+      } catch { setError('Could not delete future recurring sessions.'); }
+    }
     async function handleSessionScheduleChange(sessionId: number, start: Date, end: Date) {
       const session = sessions.find((item) => item.id === sessionId);
 
@@ -708,6 +719,7 @@ function DashboardPage() {
                       setSelectedSession(null);
                     }}
                     onDelete={() => handleSessionDelete(selectedSession)}
+                    onDeleteFuture={() => void handleFutureSessionDelete(selectedSession)}
                     onComplete={() => { setSessionToComplete(selectedSession); setSelectedSession(null); }}
                     onCancel={() => void handleSessionCancel(selectedSession)}
                     onDuplicate={() => { setDuplicatingSession(selectedSession); setSelectedSession(null); }}

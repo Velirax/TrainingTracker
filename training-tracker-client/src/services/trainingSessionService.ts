@@ -96,3 +96,13 @@ export async function getTrainingSessionsForSportFolder(
 
   return response.json() as Promise<TrainingSession[]>;
 }
+
+export async function deleteFutureTrainingSessions(id: number): Promise<void> {
+  const response = await apiFetch(`${apiBaseUrl}/training-sessions/${id}/future`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Could not delete future training sessions.');
+  }
+}

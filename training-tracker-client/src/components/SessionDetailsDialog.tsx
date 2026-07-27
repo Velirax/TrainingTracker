@@ -5,12 +5,13 @@ interface SessionDetailsDialogProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onDeleteFuture: () => void;
   onComplete: () => void;
   onCancel: () => void;
   onDuplicate: () => void;
 }
 
-function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, onCancel, onDuplicate }: SessionDetailsDialogProps) {
+function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onDeleteFuture, onComplete, onCancel, onDuplicate }: SessionDetailsDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section
@@ -42,6 +43,7 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, 
           <button className="secondary-button" type="button" onClick={onDuplicate}>Duplicate</button>
           <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
           <button className="danger-button" type="button" onClick={onDelete}>Delete</button>
+          {session.recurrenceGroupId && <button className="danger-button" type="button" onClick={onDeleteFuture}>Delete this and future</button>}
         </div>
 
         {session.exercises.length > 0 && (
