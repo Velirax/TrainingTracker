@@ -8,7 +8,6 @@ import timeGridPlugin from '@fullcalendar/react/timegrid';
 import type { TrainingSession } from '../types/trainingSession';
 import '@fullcalendar/react/skeleton.css';
 import '@fullcalendar/react/themes/monarch/theme.css';
-import '@fullcalendar/react/themes/monarch/palettes/purple.css';
 import dayGridPlugin from '@fullcalendar/react/daygrid';
 
 interface TrainingCalendarProps {

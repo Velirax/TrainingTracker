@@ -6,5 +6,8 @@ public class AppUser
     public string Email { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
+    public string DistanceUnit { get; set; } = "km";
+    public int WeekStartsOn { get; set; } = 1;
+    public string DefaultCalendarView { get; set; } = "week";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

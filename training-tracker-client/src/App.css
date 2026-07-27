@@ -28,6 +28,11 @@ main {
 .app-brand span { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 7px; border-radius: 50%; color: white; background: var(--accent); font-size: 11px; }
 .user-chip { padding: 7px 10px; color: var(--accent-border); background: var(--accent-bg); box-shadow: none; font-size: 13px; }
 .profile-details { display: flex; align-items: center; gap: 18px; max-width: 560px; padding: 18px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.profile-preferences { max-width: 560px; }
+.profile-preferences h2 { margin-top: 5px; }
+.profile-preferences form { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
+.profile-preferences label { display: grid; gap: 6px; font-size: 13px; }
+.profile-preferences form button { grid-column: 1 / -1; }
 .profile-details dl { display: grid; gap: 12px; margin: 0; }
 .profile-details dt { color: var(--text); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .profile-details dd { margin: 2px 0 0; color: var(--text-h); font-weight: 650; }
@@ -237,12 +242,19 @@ li {
   .sport-catalog-list li::after { transform: none; }
 }
 
+.sport-detail-page > button:first-child { margin-bottom: 16px; }
+.sport-detail-header { position: relative; overflow: hidden; padding: 28px; background: linear-gradient(135deg, color-mix(in srgb, var(--sport-color), white 91%), #fff 62%); }
+.sport-detail-header h1 { display: flex; align-items: center; gap: 12px; margin: 5px 0 8px; color: var(--text-h); font-size: 38px; letter-spacing: -1.5px; }
+.sport-detail-header > p { max-width: 560px; color: #526579; }
+.sport-detail-mark { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--sport-color); background: color-mix(in srgb, var(--sport-color), white 82%); font-size: 17px; font-weight: 800; }
+
 @media (max-width: 600px) {
   .sport-catalog-list {
     grid-template-columns: 1fr;
   }
 
   .section-heading { align-items: start; flex-direction: column; }
+  .profile-preferences form { grid-template-columns: 1fr; }
 }
 
 @media (min-width: 601px) and (max-width: 900px) {
@@ -986,8 +998,8 @@ li {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   color: white;
-  background: #25133f;
-  box-shadow: 0 8px 20px rgba(35, 15, 65, 0.3);
+  background: #123e43;
+  box-shadow: 0 8px 20px rgba(18, 62, 67, 0.28);
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
@@ -1009,7 +1021,7 @@ li {
   height: 9px;
   border-top: 1px solid rgba(255, 255, 255, 0.16);
   border-left: 1px solid rgba(255, 255, 255, 0.16);
-  background: #25133f;
+  background: #123e43;
   content: '';
   transform: rotate(45deg);
 }
@@ -1020,7 +1032,7 @@ li {
 
 .calendar-tooltip-label {
   margin-bottom: 3px;
-  color: #d8b4fe;
+  color: #b9e5df;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -1092,12 +1104,29 @@ li {
   margin-top: 6px;
   padding: 5px 6px;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 6px;
   color: white;
   font-size: 12px;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fc { --fc-border-color: #e3eaeb; --fc-page-bg-color: #fff; --fc-today-bg-color: #edf8f6; }
+.fc .fc-timegrid-slot { height: 3.1rem; }
+.fc .fc-timegrid-slot-label-cushion { padding-right: 10px; color: #687783; font-size: 11px; font-weight: 650; }
+.fc .fc-col-header-cell-cushion { color: #38505c; font-size: 11px; font-weight: 750; }
+.fc .fc-timegrid-event { min-height: 34px; border: 0 !important; border-radius: 7px; box-shadow: 0 4px 10px rgba(24, 44, 54, .13); }
+.calendar-event-content { padding: 2px 4px; font-size: 12px; line-height: 1.35; }
+
+@media (max-width: 720px) {
+  .calendar-surface { margin-left: -12px; margin-right: -12px; padding: 14px 12px; border-radius: 0; border-left: 0; border-right: 0; }
+  .training-calendar-wrapper { overflow-x: auto; }
+  .training-calendar-wrapper .fc { min-width: 720px; }
+  .month-calendar { overflow-x: auto; }
+  .month-calendar-weekdays, .month-calendar-grid { min-width: 700px; }
+  .month-calendar-day { min-height: 98px; }
+  .month-calendar-weekdays div { font-size: 10px; }
 }
 
 .dialog-backdrop {
@@ -1327,7 +1356,7 @@ li {
   .calendar-view-controls { padding-left: 0; border-left: 0; }
 }
 
-.fc { --fc-border-color: var(--border); --fc-page-bg-color: var(--bg); --fc-today-bg-color: #f4f0ff; }
+.fc { --fc-border-color: #e3eaeb; --fc-page-bg-color: var(--bg); --fc-today-bg-color: #edf8f6; }
 .fc .fc-timegrid-slot { height: 2.75rem; }
 .fc .fc-col-header-cell-cushion { padding: 11px 4px; color: var(--text); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .fc .fc-event { border: 0 !important; border-radius: 7px; box-shadow: 0 3px 8px rgba(30, 35, 55, 0.16); }

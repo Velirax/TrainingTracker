@@ -1,4 +1,4 @@
-import { type SubmitEvent, useEffect, useState } from 'react';
+import { type CSSProperties, type SubmitEvent, useEffect, useState } from 'react';
 import {
   createExercise,
   deleteExercise,
@@ -132,6 +132,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [templateName, setTemplateName] = useState('');
   const [templateExerciseIds, setTemplateExerciseIds] = useState<number[]>([]);
+  const [templateError, setTemplateError] = useState<string | null>(null);
   const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
   const [editingTemplateName, setEditingTemplateName] = useState('');
   const [editingTemplateExercises, setEditingTemplateExercises] = useState<WorkoutTemplate['exercises']>([]);
@@ -180,9 +181,14 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
 
   async function saveTemplateEdits() {
     if (!editingTemplateId || !editingTemplateName.trim() || editingTemplateExercises.length === 0) return;
-    const saved = await updateWorkoutTemplate(editingTemplateId, editingTemplateName.trim(), folder.id, editingTemplateExercises);
-    setTemplates((items) => items.map((item) => item.id === saved.id ? saved : item));
-    setEditingTemplateId(null);
+    try {
+      setTemplateError(null);
+      const saved = await updateWorkoutTemplate(editingTemplateId, editingTemplateName.trim(), folder.id, editingTemplateExercises);
+      setTemplates((items) => items.map((item) => item.id === saved.id ? saved : item));
+      setEditingTemplateId(null);
+    } catch {
+      setTemplateError('Could not save template changes. Please try again.');
+    }
   }
 
   useEffect(() => {
@@ -401,7 +407,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
   });
 
   return (
-    <main>
+    <main className="sport-detail-page" style={{ '--sport-color': folder.color } as CSSProperties}>
       <button type="button" onClick={onBack}>Back to sports</button>
 
       <section className="sport-detail-header">
@@ -419,9 +425,8 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
           </form>
         ) : (
           <>
-            <h1 style={{ color: folder.color }}>
-              {folder.icon} {folder.name}
-            </h1>
+            <span className="page-kicker">Sport library</span>
+            <h1><span className="sport-detail-mark">{folder.name.charAt(0)}</span>{folder.name}</h1>
             {folder.description && <p>{folder.description}</p>}
             <div className="sport-detail-actions">
               <button type="button" onClick={() => setIsEditing(true)}>Edit sport</button>
@@ -801,8 +806,9 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
             <div className="template-exercise-picker">
               {exercises.map((exercise) => <label key={exercise.id}><input type="checkbox" checked={templateExerciseIds.includes(exercise.id)} onChange={() => setTemplateExerciseIds((current) => current.includes(exercise.id) ? current.filter((id) => id !== exercise.id) : [...current, exercise.id])} />{exercise.name}</label>)}
             </div>
-            <button type="button" disabled={!templateName.trim() || templateExerciseIds.length === 0} onClick={async () => { const template = await createWorkoutTemplate(templateName.trim(), folder.id, templateExerciseIds.map((exerciseId) => ({ exerciseId, trackingValues: {} }))); setTemplates((items) => [...items, template]); setTemplateName(''); setTemplateExerciseIds([]); }}>Save template</button>
+            <button type="button" disabled={!templateName.trim() || templateExerciseIds.length === 0} onClick={async () => { try { setTemplateError(null); const template = await createWorkoutTemplate(templateName.trim(), folder.id, templateExerciseIds.map((exerciseId) => ({ exerciseId, trackingValues: {} }))); setTemplates((items) => [...items, template]); setTemplateName(''); setTemplateExerciseIds([]); } catch { setTemplateError('Could not save this template. Please try again.'); } }}>Save template</button>
           </div>
+          {templateError && <p role="alert">{templateError}</p>}
           <ul className="template-list">
             {templates.filter((template) => template.sportFolderId === folder.id).map((template) => (
               <li key={template.id} className="template-list-item">
@@ -842,7 +848,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
                 ) : (
                   <>
                     <div><strong>{template.name}</strong><span>{template.exercises.map((entry) => exercises.find((exercise) => exercise.id === entry.exerciseId)?.name).filter(Boolean).join(', ')}</span></div>
-                    <div className="template-actions"><button type="button" onClick={() => startEditingTemplate(template)}>Edit</button><button className="danger-button" type="button" onClick={async () => { await deleteWorkoutTemplate(template.id); setTemplates((items) => items.filter((item) => item.id !== template.id)); }}>Delete</button></div>
+                    <div className="template-actions"><button type="button" onClick={() => startEditingTemplate(template)}>Edit</button><button className="danger-button" type="button" onClick={async () => { try { setTemplateError(null); await deleteWorkoutTemplate(template.id); setTemplates((items) => items.filter((item) => item.id !== template.id)); } catch { setTemplateError('Could not delete this template. Please try again.'); } }}>Delete</button></div>
                   </>
                 )}
               </li>
