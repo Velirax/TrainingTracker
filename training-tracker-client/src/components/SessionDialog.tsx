@@ -98,7 +98,9 @@ function SessionDialog({
   const [templateName, setTemplateName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [repeatCount, setRepeatCount] = useState('1');
+  const [repeatCount, setRepeatCount] = useState(
+    () => localStorage.getItem('training-tracker-repeat-count') ?? '1',
+  );
   const isEditing = sessionToEdit !== undefined;
   
 
@@ -119,6 +121,10 @@ function SessionDialog({
     if (!selectedSportFolderId) return;
     getWorkoutTemplates(Number(selectedSportFolderId)).then(setWorkoutTemplates).catch(() => setWorkoutTemplates([]));
   }, [selectedSportFolderId]);
+
+  useEffect(() => {
+    localStorage.setItem('training-tracker-repeat-count', repeatCount);
+  }, [repeatCount]);
 
   useEffect(() => {
     async function loadExercises() {
