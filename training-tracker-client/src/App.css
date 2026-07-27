@@ -735,6 +735,9 @@ li {
 .dashboard-intro .page-header { margin: 0 0 16px; }
 .success-message { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #b9ded7; border-radius: 9px; color: #15564d; background: #edf9f6; font-size: 13px; font-weight: 650; }
 .success-message button { padding: 3px 7px; color: #15564d; background: transparent; font-size: 12px; }
+.dashboard-reminders { display: flex; gap: 10px; margin: 0 0 14px; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.dashboard-reminders button, .dashboard-reminders span { display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 8px; color: #65440c; background: #fff7df; font-size: 12px; }
+.dashboard-reminders span { color: #8c3428; background: #fff0ed; }
 
 .session-filter-bar {
   display: grid;
@@ -764,7 +767,7 @@ li {
   grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(130px, 1fr));
 }
 
-.dashboard-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .5fr); gap: 24px; align-items: stretch; padding: 24px; background: linear-gradient(135deg, #fff 0%, #f6fbfa 100%); }
+.dashboard-summary { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: stretch; padding: 24px; background: linear-gradient(135deg, #fff 0%, #f6fbfa 100%); }
 .dashboard-summary { margin: 0 0 20px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .dashboard-overview { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 
@@ -824,10 +827,10 @@ li {
   color: var(--text);
   font-size: 14px;
 }
-.dashboard-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
-.dashboard-insights h3 { margin: 0 0 12px; font-size: 14px; }.dashboard-insights p { color: var(--text); font-size: 12px; }
-.trend-bars { display: flex; height: 100px; align-items: end; gap: 8px; }.trend-bars div { display: grid; flex: 1; height: 100%; align-items: end; gap: 5px; }.trend-bars span { display: block; min-height: 4px; border-radius: 4px 4px 1px 1px; background: var(--accent); }.trend-bars small { color: var(--text); font-size: 10px; text-align: center; }
-.sport-comparison { display: grid; gap: 9px; }.sport-comparison div { display: grid; grid-template-columns: 72px 1fr auto; align-items: center; gap: 8px; font-size: 12px; }.sport-comparison i { height: 8px; overflow: hidden; border-radius: 99px; background: #e6eeee; }.sport-comparison b { display: block; height: 100%; border-radius: inherit; }
+.dashboard-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+.dashboard-insights article { min-width: 0; }.dashboard-insights h3 { margin: 0 0 14px; color: var(--text-h); font-size: 13px; }.dashboard-insights p { color: var(--text); font-size: 12px; }
+.status-chart { display: grid; gap: 12px; padding-top: 4px; }.status-chart div { display: grid; grid-template-columns: 72px minmax(48px, 1fr) auto; align-items: center; gap: 9px; font-size: 12px; }.status-chart i { height: 8px; overflow: hidden; border-radius: 99px; background: #e5eeee; }.status-chart b { display: block; height: 100%; border-radius: inherit; }
+.sport-comparison { display: grid; gap: 12px; padding-top: 4px; }.sport-comparison div { display: grid; grid-template-columns: 72px minmax(48px, 1fr) auto; align-items: center; gap: 9px; font-size: 12px; }.sport-comparison i { height: 7px; overflow: hidden; border-radius: 99px; background: #e5eeee; }.sport-comparison b { display: block; height: 100%; border-radius: inherit; }
 
 .dashboard-sport-list {
   gap: 6px;
@@ -861,7 +864,7 @@ li {
 .goal-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #e5eeee; }
 .goal-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 180ms ease; }
 
-.upcoming-sessions { margin: 0; padding: 2px 0 0 24px; border: 0; border-left: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; }
+.upcoming-sessions { margin: 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; box-shadow: none; }
 
 .upcoming-sessions h2 {
   margin-top: 0;

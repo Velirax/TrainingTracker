@@ -166,7 +166,7 @@ function DashboardPage() {
     const weekDates = getWeekDates(selectedDate, weekStartsOn);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
     const [overviewSessions, setOverviewSessions] = useState<TrainingSession[]>([]);
-    const [overviewRange, setOverviewRange] = useState<'week' | 'month' | 'year' | 'custom'>('month');
+    const [overviewRange, setOverviewRange] = useState<'week' | 'month' | 'year' | 'custom'>('week');
     const [customOverviewStart, setCustomOverviewStart] = useState(formatDateForApi(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
     const [customOverviewEnd, setCustomOverviewEnd] = useState(formatDateForApi(new Date()));
     const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
@@ -214,13 +214,14 @@ function DashboardPage() {
       (total, session) => total + session.durationMinutes,
       0,
     );
-    const completedByDate = Array.from(completedSessions.reduce((totals, session) => {
-      totals.set(session.sessionDate, (totals.get(session.sessionDate) ?? 0) + session.durationMinutes);
-      return totals;
-    }, new Map<string, number>()).entries()).sort(([first], [second]) => first.localeCompare(second));
     const sportComparison = groupSessionsBySport(completedSessions).slice(0, 5);
-    const maxTrendMinutes = Math.max(...completedByDate.map(([, minutes]) => minutes), 1);
     const maxSportMinutes = Math.max(...sportComparison.map((sport) => sport.durationMinutes), 1);
+    const statusCounts = [
+      { label: 'Planned', count: plannedSessions.length, color: '#d28a25' },
+      { label: 'Completed', count: completedSessions.length, color: '#176b72' },
+      { label: 'Cancelled', count: filteredOverviewSessions.filter((session) => session.status === 'Cancelled').length, color: '#a04a45' },
+    ];
+    const statusTotal = Math.max(statusCounts.reduce((total, item) => total + item.count, 0), 1);
     const now = new Date();
     const upcomingSessions = upcomingSessionSource
       .filter((session) => session.status === 'Planned')
@@ -231,7 +232,11 @@ function DashboardPage() {
         `${first.sessionDate}T${first.startTime}`.localeCompare(
           `${second.sessionDate}T${second.startTime}`,
         ))
-      .slice(0, 5);
+      .slice(0, 1);
+    const todayKey = formatDateForApi(new Date());
+    const todaySessions = upcomingSessionSource.filter((session) =>
+      session.status === 'Planned' && session.sessionDate === todayKey,
+    );
 
     useEffect(() => {
       getSportFolders().then(setSportFolders).catch(() => setError('Could not load sports.'));
@@ -240,7 +245,12 @@ function DashboardPage() {
 
     useEffect(() => {
       getPreferences().then((preferences) => {
-        setCalendarView(preferences.defaultCalendarView === 'month' ? 'dayGridMonth' : 'timeGridWeek');
+        const preferredCalendarView = preferences.defaultCalendarView === 'month'
+          ? 'dayGridMonth'
+          : 'timeGridWeek';
+
+        setCalendarView(preferredCalendarView);
+        setOverviewRange(preferredCalendarView === 'dayGridMonth' ? 'month' : 'week');
         setWeekStartsOn(preferences.weekStartsOn);
         setDistanceUnit(preferences.distanceUnit);
       }).catch(() => {
@@ -486,6 +496,10 @@ function DashboardPage() {
     <main className="calendar-page" data-distance-unit={distanceUnit}>
         <div className="dashboard-intro">
           {successMessage && <div className="success-message" role="status">{successMessage}<button type="button" onClick={() => setSuccessMessage(null)}>Dismiss</button></div>}
+          {(todaySessions.length > 0 || sessionsNeedingReview.length > 0) && <section className="dashboard-reminders" aria-label="Session reminders">
+            {todaySessions.length > 0 && <button type="button" onClick={() => handleSessionClick(todaySessions[0].id)}><strong>Today</strong><span>{todaySessions.length} planned {todaySessions.length === 1 ? 'session' : 'sessions'}</span></button>}
+            {sessionsNeedingReview.length > 0 && <span><strong>Needs review</strong> {sessionsNeedingReview.length} past planned {sessionsNeedingReview.length === 1 ? 'session' : 'sessions'}</span>}
+          </section>}
           <header className="page-header">
             <span className="page-kicker">Your training space</span>
             <div className="calendar-hero-copy">
@@ -572,10 +586,7 @@ function DashboardPage() {
             </article>
           </div>
           <div className="dashboard-insights">
-            <article>
-              <h3>Completed training trend</h3>
-              {completedByDate.length === 0 ? <p>No completed sessions in this range.</p> : <div className="trend-bars">{completedByDate.map(([date, minutes]) => <div key={date}><span style={{ height: `${Math.max(10, (minutes / maxTrendMinutes) * 100)}%` }} title={`${date}: ${formatTrainingTime(minutes)}`} /><small>{date.slice(5)}</small></div>)}</div>}
-            </article>
+            <article><h3>Session status</h3><div className="status-chart">{statusCounts.map((item) => <div key={item.label}><span>{item.label}</span><i><b style={{ width: `${(item.count / statusTotal) * 100}%`, backgroundColor: item.color }} /></i><small>{item.count}</small></div>)}</div></article>
             <article>
               <h3>Completed time by sport</h3>
               {sportComparison.length === 0 ? <p>No completed sessions in this range.</p> : <div className="sport-comparison">{sportComparison.map((sport) => <div key={sport.name}><span>{sport.name}</span><i><b style={{ width: `${(sport.durationMinutes / maxSportMinutes) * 100}%`, backgroundColor: sport.color }} /></i><small>{formatTrainingTime(sport.durationMinutes)}</small></div>)}</div>}
@@ -583,7 +594,7 @@ function DashboardPage() {
           </div>
           </div>
           <aside className="upcoming-sessions">
-          <h2>All future sessions</h2>
+          <h2>Next upcoming session</h2>
           {upcomingSessions.length === 0 ? (
             <p>No planned sessions in this period.</p>
           ) : (
@@ -636,14 +647,20 @@ function DashboardPage() {
             <button
               aria-pressed={calendarView === 'timeGridWeek'}
               type="button"
-              onClick={() => setCalendarView('timeGridWeek')}
+              onClick={() => {
+                setCalendarView('timeGridWeek');
+                setOverviewRange('week');
+              }}
             >
               Week
             </button>
             <button
               aria-pressed={calendarView === 'dayGridMonth'}
               type="button"
-              onClick={() => setCalendarView('dayGridMonth')}
+              onClick={() => {
+                setCalendarView('dayGridMonth');
+                setOverviewRange('month');
+              }}
             >
               Month
             </button>
