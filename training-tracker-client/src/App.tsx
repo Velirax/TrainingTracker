@@ -5,16 +5,28 @@ import SportFoldersPage from './pages/SportFoldersPage';
 import AuthPage from './components/AuthPage';
 import ProfilePage from './pages/ProfilePage';
 
+function getStoredTheme(): 'light' | 'dark' {
+  const stored = localStorage.getItem('training-tracker-theme');
+  if (stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'sports' | 'profile'>('home');
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user ?? null);
   const [authMessage, setAuthMessage] = useState('');
+  const [theme, setTheme] = useState<'light' | 'dark'>(getStoredTheme);
 
   useEffect(() => {
     const handleExpired = () => { setUser(null); setAuthMessage('Your session expired. Please sign in again.'); };
     window.addEventListener('training-tracker-auth-expired', handleExpired);
     return () => window.removeEventListener('training-tracker-auth-expired', handleExpired);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('training-tracker-theme', theme);
+  }, [theme]);
 
   if (!user) return <AuthPage initialMessage={authMessage} onAuthenticated={() => { setAuthMessage(''); setUser(JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user ?? null); }} />;
   const signOut = () => { localStorage.removeItem('training-tracker-auth'); setUser(null); };
@@ -44,10 +56,24 @@ function App() {
         </button>
         <button className={activeTab === 'profile' ? 'app-tab-active' : ''} type="button" onClick={() => setActiveTab('profile')}>Profile</button>
         </div>
+        <button
+          className="theme-toggle secondary-button"
+          type="button"
+          aria-pressed={theme === 'dark'}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+        >
+          {theme === 'dark' ? 'Dark' : 'Light'}
+        </button>
         <button className="user-chip" type="button" onClick={() => setActiveTab('profile')}>{user.displayName}</button>
       </nav>
 
-      {activeTab === 'home' ? <DashboardPage /> : activeTab === 'sports' ? <SportFoldersPage /> : <ProfilePage user={user} onSignOut={signOut} />}
+      {activeTab === 'home'
+        ? <DashboardPage />
+        : activeTab === 'sports'
+          ? <SportFoldersPage />
+          : <ProfilePage user={user} onSignOut={signOut} />}
     </>
   );
 }

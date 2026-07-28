@@ -887,7 +887,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
                   </span>
                 </div>
                 <div className="sport-session-meta">
-                  <span>{session.status}</span>
+                  <span className="status-badge" data-status={session.status}>{session.status}</span>
                   <span>{formatDuration(session.durationMinutes)}</span>
                 </div>
               </li>

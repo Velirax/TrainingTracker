@@ -217,9 +217,9 @@ function DashboardPage() {
     const sportComparison = groupSessionsBySport(completedSessions).slice(0, 5);
     const maxSportMinutes = Math.max(...sportComparison.map((sport) => sport.durationMinutes), 1);
     const statusCounts = [
-      { label: 'Planned', count: plannedSessions.length, color: '#d28a25' },
-      { label: 'Completed', count: completedSessions.length, color: '#176b72' },
-      { label: 'Cancelled', count: filteredOverviewSessions.filter((session) => session.status === 'Cancelled').length, color: '#a04a45' },
+      { label: 'Planned', count: plannedSessions.length, color: 'var(--status-info-solid)' },
+      { label: 'Completed', count: completedSessions.length, color: 'var(--status-success-solid)' },
+      { label: 'Cancelled', count: filteredOverviewSessions.filter((session) => session.status === 'Cancelled').length, color: 'var(--status-neutral-solid)' },
     ];
     const statusTotal = Math.max(statusCounts.reduce((total, item) => total + item.count, 0), 1);
     const now = new Date();
