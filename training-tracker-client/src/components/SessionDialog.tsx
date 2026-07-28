@@ -17,6 +17,7 @@ interface SessionDialogProps {
   onClose: () => void;
   onCreated: (session: TrainingSession) => void;
   sessionToEdit?: TrainingSession;
+  sessionToDuplicate?: TrainingSession;
   onUpdated?: (session: TrainingSession) => void;
 }
 
@@ -55,13 +56,15 @@ function SessionDialog({
   onClose,
   onCreated,
   sessionToEdit,
+  sessionToDuplicate,
   onUpdated,
 }: SessionDialogProps) {
   const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
+  const sourceSession = sessionToEdit ?? sessionToDuplicate;
   const [selectedSportFolderId, setSelectedSportFolderId] = useState(
-    sessionToEdit ? String(sessionToEdit.sportFolderId) : '',
+    sourceSession ? String(sourceSession.sportFolderId) : '',
   );
-  const [title, setTitle] = useState(sessionToEdit?.title ?? '');
+  const [title, setTitle] = useState(sourceSession?.title ?? '');
   const [sessionDate, setSessionDate] = useState(
     sessionToEdit?.sessionDate ?? formatDateForInput(start),
   );
@@ -72,19 +75,19 @@ function SessionDialog({
     sessionToEdit?.endTime.slice(0, 5) ?? formatTimeForInput(end),
   );
   const [sessionType, setSessionType] = useState(
-    sessionToEdit?.sessionType ?? 'Practice',
+    sourceSession?.sessionType ?? 'Practice',
   );
   const [sessionStatus, setSessionStatus] = useState(
     sessionToEdit?.status ?? 'Planned',
   );
   const [rating, setRating] = useState(
-    sessionToEdit?.rating ? String(sessionToEdit.rating) : '',
+    sourceSession?.rating ? String(sourceSession.rating) : '',
   );
-  const [notes, setNotes] = useState(sessionToEdit?.notes ?? '');
+  const [notes, setNotes] = useState(sourceSession?.notes ?? '');
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
   const [sessionExercises, setSessionExercises] = useState(
-    sessionToEdit?.exercises.map((exercise) => ({
+    sourceSession?.exercises.map((exercise) => ({
       exerciseId: exercise.exerciseId,
       trackingValues: exercise.trackingValues,
     })) ?? [],
@@ -95,6 +98,9 @@ function SessionDialog({
   const [templateName, setTemplateName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [repeatCount, setRepeatCount] = useState(
+    () => localStorage.getItem('training-tracker-repeat-count') ?? '1',
+  );
   const isEditing = sessionToEdit !== undefined;
   
 
@@ -115,6 +121,10 @@ function SessionDialog({
     if (!selectedSportFolderId) return;
     getWorkoutTemplates(Number(selectedSportFolderId)).then(setWorkoutTemplates).catch(() => setWorkoutTemplates([]));
   }, [selectedSportFolderId]);
+
+  useEffect(() => {
+    localStorage.setItem('training-tracker-repeat-count', repeatCount);
+  }, [repeatCount]);
 
   useEffect(() => {
     async function loadExercises() {
@@ -241,9 +251,23 @@ function SessionDialog({
       return;
     }
 
+    if (sessionStatus === 'Planned' && sessionDate < formatDateForInput(new Date())) {
+      setFormError('Planned sessions cannot be scheduled in the past.');
+      return;
+    }
+
+    if (endTime <= startTime) {
+      setFormError('End time must be later than start time.');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
+      const occurrences = Math.min(Math.max(Number(repeatCount) || 1, 1), 52);
+      const recurrenceGroupId = occurrences > 1
+        ? sourceSession?.recurrenceGroupId ?? crypto.randomUUID()
+        : sourceSession?.recurrenceGroupId ?? null;
       const request = {
         sportFolderId: Number(selectedSportFolderId),
         title,
@@ -254,6 +278,7 @@ function SessionDialog({
         status: sessionStatus,
         rating: rating ? Number(rating) : null,
         notes: notes || null,
+        recurrenceGroupId,
         exercises: sessionExercises,
       };
 
@@ -265,6 +290,19 @@ function SessionDialog({
         onUpdated?.(savedSession);
       } else {
         onCreated(savedSession);
+      }
+
+      for (let occurrence = 1; occurrence < occurrences; occurrence += 1) {
+        const repeatedDate = new Date(`${sessionDate}T12:00:00`);
+        repeatedDate.setDate(repeatedDate.getDate() + occurrence * 7);
+        const repeatedSession = await createTrainingSession({
+          ...request,
+          sessionDate: formatDateForInput(repeatedDate),
+          // Future recurrence instances always begin as planned work.
+          status: 'Planned',
+          rating: null,
+        });
+        onCreated(repeatedSession);
       }
     } catch {
       setFormError(
@@ -365,6 +403,18 @@ function SessionDialog({
                 <option value="">No rating</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
               </select>
             </div>
+
+            {!isEditing && <div className="dialog-field">
+              <label htmlFor="dialog-session-repeat">Repeat weekly</label>
+              <select id="dialog-session-repeat" value={repeatCount} onChange={(event) => setRepeatCount(event.target.value)}>
+                <option value="1">Do not repeat</option>
+                <option value="2">For 2 weeks</option>
+                <option value="4">For 4 weeks</option>
+                <option value="8">For 8 weeks</option>
+                <option value="12">For 12 weeks</option>
+              </select>
+            </div>
+            }
 
             <div className="dialog-field dialog-field-wide">
               <label htmlFor="dialog-session-notes">Notes (optional)</label>

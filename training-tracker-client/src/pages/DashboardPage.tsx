@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
+  createTrainingSession,
   deleteTrainingSession,
+  deleteFutureTrainingSessions,
   getTrainingSessions,
   getSessionsNeedingReview,
   updateTrainingSession,
@@ -15,6 +17,7 @@ import SessionDetailsDialog from '../components/SessionDetailsDialog';
 import SessionDialog from '../components/SessionDialog';
 import SessionReviewDialog from '../components/SessionReviewDialog';
 import CompleteSessionDialog from '../components/CompleteSessionDialog';
+import RecurrenceDialog from '../components/RecurrenceDialog';
 
 const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -26,11 +29,11 @@ const monthFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 });
 
-function getWeekDates(date: Date): Date[] {
+function getWeekDates(date: Date, firstDay = 1): Date[] {
   const startOfWeek = new Date(date);
-  const daysSinceMonday = (startOfWeek.getDay() + 6) % 7;
+  const daysSinceFirstDay = (startOfWeek.getDay() - firstDay + 7) % 7;
 
-  startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
+  startOfWeek.setDate(startOfWeek.getDate() - daysSinceFirstDay);
 
   return Array.from({ length: 7 }, (_, index) => {
     const day = new Date(startOfWeek);
@@ -44,6 +47,17 @@ function getMonthDates(date: Date): [Date, Date] {
     new Date(date.getFullYear(), date.getMonth(), 1),
     new Date(date.getFullYear(), date.getMonth() + 1, 0),
   ];
+}
+
+function getMonthGridDates(date: Date, firstDay: number): [Date, Date] {
+  const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const offset = (firstOfMonth.getDay() - firstDay + 7) % 7;
+  const firstVisibleDate = new Date(firstOfMonth);
+  firstVisibleDate.setDate(firstVisibleDate.getDate() - offset);
+  const lastVisibleDate = new Date(firstVisibleDate);
+  lastVisibleDate.setDate(lastVisibleDate.getDate() + 41);
+
+  return [firstVisibleDate, lastVisibleDate];
 }
 
 function formatDateForApi(date: Date): string {
@@ -96,6 +110,21 @@ function formatTrainingTime(totalMinutes: number): string {
   return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
 }
 
+function exportSessionsCsv(sessions: TrainingSession[]) {
+  const escape = (value: string | number | null | undefined) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+  const header = ['Date', 'Start', 'End', 'Sport', 'Title', 'Type', 'Status', 'Rating', 'Notes', 'Exercises'];
+  const rows = sessions.map((session) => [
+    session.sessionDate, session.startTime, session.endTime, session.sportFolderName, session.title,
+    session.sessionType, session.status, session.rating, session.notes,
+    session.exercises.map((exercise) => `${exercise.exerciseName}: ${Object.entries(exercise.trackingValues).filter(([, value]) => value).map(([field, value]) => `${field} ${value}`).join(', ')}`).join(' | '),
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(escape).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url; link.download = `training-sessions-${formatDateForApi(new Date())}.csv`; link.click();
+  URL.revokeObjectURL(url);
+}
+
 function formatExerciseTooltip(session: TrainingSession): string {
   if (session.exercises.length === 0) {
     return 'No exercises logged.';
@@ -132,10 +161,12 @@ function DashboardPage() {
     const [calendarView, setCalendarView] = useState<
       'timeGridWeek' | 'dayGridMonth'
     >('timeGridWeek');
-    const weekDates = getWeekDates(selectedDate);
+    const [weekStartsOn, setWeekStartsOn] = useState(1);
+    const [distanceUnit, setDistanceUnit] = useState<'km' | 'mi'>('km');
+    const weekDates = getWeekDates(selectedDate, weekStartsOn);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
     const [overviewSessions, setOverviewSessions] = useState<TrainingSession[]>([]);
-    const [overviewRange, setOverviewRange] = useState<'week' | 'month' | 'year' | 'custom'>('month');
+    const [overviewRange, setOverviewRange] = useState<'week' | 'month' | 'year' | 'custom'>('week');
     const [customOverviewStart, setCustomOverviewStart] = useState(formatDateForApi(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
     const [customOverviewEnd, setCustomOverviewEnd] = useState(formatDateForApi(new Date()));
     const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
@@ -146,12 +177,15 @@ function DashboardPage() {
     const [upcomingSessionSource, setUpcomingSessionSource] = useState<TrainingSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
     const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
     const [sessionToComplete, setSessionToComplete] = useState<TrainingSession | null>(null);
     const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
+    const [duplicatingSession, setDuplicatingSession] = useState<TrainingSession | null>(null);
     const [sessionsNeedingReview, setSessionsNeedingReview] = useState<TrainingSession[]>([]);
+    const [recurrenceSource, setRecurrenceSource] = useState<TrainingSession | null>(null);
     const filteredSessions = sessions.filter((session) => {
       const matchesSport = !sportFilter || session.sportFolderId === Number(sportFilter);
       const matchesStatus = !statusFilter || session.status === statusFilter;
@@ -180,6 +214,14 @@ function DashboardPage() {
       (total, session) => total + session.durationMinutes,
       0,
     );
+    const sportComparison = groupSessionsBySport(completedSessions).slice(0, 5);
+    const maxSportMinutes = Math.max(...sportComparison.map((sport) => sport.durationMinutes), 1);
+    const statusCounts = [
+      { label: 'Planned', count: plannedSessions.length, color: '#d28a25' },
+      { label: 'Completed', count: completedSessions.length, color: '#176b72' },
+      { label: 'Cancelled', count: filteredOverviewSessions.filter((session) => session.status === 'Cancelled').length, color: '#a04a45' },
+    ];
+    const statusTotal = Math.max(statusCounts.reduce((total, item) => total + item.count, 0), 1);
     const now = new Date();
     const upcomingSessions = upcomingSessionSource
       .filter((session) => session.status === 'Planned')
@@ -190,15 +232,27 @@ function DashboardPage() {
         `${first.sessionDate}T${first.startTime}`.localeCompare(
           `${second.sessionDate}T${second.startTime}`,
         ))
-      .slice(0, 5);
+      .slice(0, 1);
+    const todayKey = formatDateForApi(new Date());
+    const todaySessions = upcomingSessionSource.filter((session) =>
+      session.status === 'Planned' && session.sessionDate === todayKey,
+    );
 
     useEffect(() => {
       getSportFolders().then(setSportFolders).catch(() => setError('Could not load sports.'));
     }, []);
 
+
     useEffect(() => {
       getPreferences().then((preferences) => {
-        setCalendarView(preferences.defaultCalendarView === 'month' ? 'dayGridMonth' : 'timeGridWeek');
+        const preferredCalendarView = preferences.defaultCalendarView === 'month'
+          ? 'dayGridMonth'
+          : 'timeGridWeek';
+
+        setCalendarView(preferredCalendarView);
+        setOverviewRange(preferredCalendarView === 'dayGridMonth' ? 'month' : 'week');
+        setWeekStartsOn(preferences.weekStartsOn);
+        setDistanceUnit(preferences.distanceUnit);
       }).catch(() => {
         // The calendar remains usable with its week-view default.
       });
@@ -213,7 +267,7 @@ function DashboardPage() {
             try {
             const [startDate, endDate] = calendarView === 'timeGridWeek'
                 ? [weekDates[0], weekDates[6]]
-                : getMonthDates(selectedDate);
+                : getMonthGridDates(selectedDate, weekStartsOn);
 
             const loadedSessions = await getTrainingSessions(
                 formatDateForApi(startDate),
@@ -229,13 +283,13 @@ function DashboardPage() {
         }
 
         loadTrainingSessions();
-    }, [selectedDate, calendarView]);
+    }, [selectedDate, calendarView, weekStartsOn]);
 
     useEffect(() => {
       const [startDate, endDate] = (() => {
         if (overviewRange === 'custom') return [customOverviewStart, customOverviewEnd];
         if (overviewRange === 'week') {
-          const dates = getWeekDates(selectedDate);
+          const dates = getWeekDates(selectedDate, weekStartsOn);
           return [formatDateForApi(dates[0]), formatDateForApi(dates[6])];
         }
         if (overviewRange === 'year') {
@@ -248,7 +302,7 @@ function DashboardPage() {
       getTrainingSessions(startDate, endDate).then(setOverviewSessions).catch(() => {
         setError('Could not load dashboard metrics.');
       });
-    }, [selectedDate, overviewRange, customOverviewStart, customOverviewEnd]);
+    }, [selectedDate, overviewRange, customOverviewStart, customOverviewEnd, weekStartsOn]);
 
     useEffect(() => {
       async function loadUpcomingSessions() {
@@ -343,6 +397,79 @@ function DashboardPage() {
         setError('Could not delete the training session.');
       }
     }
+    async function handleFutureSessionDelete(session: TrainingSession) {
+      if (!window.confirm(`Delete "${session.title}" and all future occurrences?`)) return;
+      try {
+        await deleteFutureTrainingSessions(session.id);
+        const cutoff = session.sessionDate;
+        setSessions((items) => items.filter((item) => item.recurrenceGroupId !== session.recurrenceGroupId || item.sessionDate < cutoff));
+        setUpcomingSessionSource((items) => items.filter((item) => item.recurrenceGroupId !== session.recurrenceGroupId || item.sessionDate < cutoff));
+        setSelectedSession(null);
+      } catch { setError('Could not delete future recurring sessions.'); }
+    }
+    async function createRecurrence(session: TrainingSession, occurrences: number) {
+      const recurrenceGroupId = crypto.randomUUID();
+      try {
+        const baseRequest = {
+          sportFolderId: session.sportFolderId, title: session.title, sessionDate: session.sessionDate,
+          startTime: session.startTime, endTime: session.endTime, sessionType: session.sessionType,
+          status: session.status, rating: session.rating, notes: session.notes,
+          recurrenceGroupId,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        };
+        const groupedSource = await updateTrainingSession(session.id, baseRequest);
+        const futureSessions: TrainingSession[] = [];
+        for (let index = 1; index < occurrences; index += 1) {
+          const date = new Date(`${session.sessionDate}T12:00:00`);
+          date.setDate(date.getDate() + index * 7);
+          futureSessions.push(await createTrainingSession({ ...baseRequest, sessionDate: formatDateForApi(date), status: 'Planned', rating: null }));
+        }
+        setSessions((items) => items.map((item) => item.id === groupedSource.id ? groupedSource : item).concat(futureSessions));
+        setUpcomingSessionSource((items) => items.map((item) => item.id === groupedSource.id ? groupedSource : item).concat(futureSessions));
+        setSuccessMessage(`Created ${occurrences - 1} future weekly sessions.`);
+        setRecurrenceSource(null);
+      } catch { setError('Could not create the recurring sessions.'); }
+    }
+    async function duplicateSessionNextWeek(session: TrainingSession) {
+      const date = new Date(`${session.sessionDate}T12:00:00`);
+      date.setDate(date.getDate() + 7);
+      try {
+        const duplicate = await createTrainingSession({
+          sportFolderId: session.sportFolderId, title: session.title,
+          sessionDate: formatDateForApi(date), startTime: session.startTime, endTime: session.endTime,
+          sessionType: session.sessionType, status: 'Planned', rating: null, notes: session.notes,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        });
+        setSessions((items) => [...items, duplicate]);
+        setUpcomingSessionSource((items) => [...items, duplicate]);
+        setSelectedSession(null);
+        setSuccessMessage('Created a planned copy for next week.');
+      } catch { setError('Could not duplicate the session for next week.'); }
+    }
+    async function handleSessionScheduleChange(sessionId: number, start: Date, end: Date) {
+      const session = sessions.find((item) => item.id === sessionId);
+
+      if (!session) return;
+
+      try {
+        const updated = await updateTrainingSession(session.id, {
+          sportFolderId: session.sportFolderId,
+          title: session.title,
+          sessionDate: formatDateForApi(start),
+          startTime: start.toTimeString().slice(0, 5) + ':00',
+          endTime: end.toTimeString().slice(0, 5) + ':00',
+          sessionType: session.sessionType,
+          status: session.status,
+          rating: session.rating,
+          notes: session.notes,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        });
+        setSessions((items) => items.map((item) => item.id === updated.id ? updated : item));
+        setUpcomingSessionSource((items) => items.map((item) => item.id === updated.id ? updated : item));
+      } catch {
+        setError('Could not reschedule the session.');
+      }
+    }
 
     async function handleSessionCancel(session: TrainingSession) {
       try {
@@ -366,8 +493,13 @@ function DashboardPage() {
       }
     }
     return (
-    <main className="calendar-page">
+    <main className="calendar-page" data-distance-unit={distanceUnit}>
         <div className="dashboard-intro">
+          {successMessage && <div className="success-message" role="status">{successMessage}<button type="button" onClick={() => setSuccessMessage(null)}>Dismiss</button></div>}
+          {(todaySessions.length > 0 || sessionsNeedingReview.length > 0) && <section className="dashboard-reminders" aria-label="Session reminders">
+            {todaySessions.length > 0 && <button type="button" onClick={() => handleSessionClick(todaySessions[0].id)}><strong>Today</strong><span>{todaySessions.length} planned {todaySessions.length === 1 ? 'session' : 'sessions'}</span></button>}
+            {sessionsNeedingReview.length > 0 && <span><strong>Needs review</strong> {sessionsNeedingReview.length} past planned {sessionsNeedingReview.length === 1 ? 'session' : 'sessions'}</span>}
+          </section>}
           <header className="page-header">
             <span className="page-kicker">Your training space</span>
             <div className="calendar-hero-copy">
@@ -453,9 +585,16 @@ function DashboardPage() {
               <p>{filteredOverviewSessions.length} matching sessions</p>
             </article>
           </div>
+          <div className="dashboard-insights">
+            <article><h3>Session status</h3><div className="status-chart">{statusCounts.map((item) => <div key={item.label}><span>{item.label}</span><i><b style={{ width: `${(item.count / statusTotal) * 100}%`, backgroundColor: item.color }} /></i><small>{item.count}</small></div>)}</div></article>
+            <article>
+              <h3>Completed time by sport</h3>
+              {sportComparison.length === 0 ? <p>No completed sessions in this range.</p> : <div className="sport-comparison">{sportComparison.map((sport) => <div key={sport.name}><span>{sport.name}</span><i><b style={{ width: `${(sport.durationMinutes / maxSportMinutes) * 100}%`, backgroundColor: sport.color }} /></i><small>{formatTrainingTime(sport.durationMinutes)}</small></div>)}</div>}
+            </article>
+          </div>
           </div>
           <aside className="upcoming-sessions">
-          <h2>All future sessions</h2>
+          <h2>Next upcoming session</h2>
           {upcomingSessions.length === 0 ? (
             <p>No planned sessions in this period.</p>
           ) : (
@@ -508,18 +647,25 @@ function DashboardPage() {
             <button
               aria-pressed={calendarView === 'timeGridWeek'}
               type="button"
-              onClick={() => setCalendarView('timeGridWeek')}
+              onClick={() => {
+                setCalendarView('timeGridWeek');
+                setOverviewRange('week');
+              }}
             >
               Week
             </button>
             <button
               aria-pressed={calendarView === 'dayGridMonth'}
               type="button"
-              onClick={() => setCalendarView('dayGridMonth')}
+              onClick={() => {
+                setCalendarView('dayGridMonth');
+                setOverviewRange('month');
+              }}
             >
               Month
             </button>
         </div>
+        <button className="secondary-button export-sessions-button" type="button" onClick={() => exportSessionsCsv(filteredOverviewSessions)}>Export CSV</button>
         </div>
 
         {isLoading ? (
@@ -531,6 +677,7 @@ function DashboardPage() {
               {calendarView === 'dayGridMonth' ? (
                 <MonthCalendar
                   selectedDate={selectedDate}
+                  firstDay={weekStartsOn}
                   sessions={filteredSessions}
                   onSessionClick={handleSessionClick}
                 />
@@ -538,10 +685,12 @@ function DashboardPage() {
                 <TrainingCalendar
                   key={`${formatDateForApi(selectedDate)}-${sessions.map((session) => `${session.id}-${session.updatedAt}`).join(',')}`}
                   initialDate={selectedDate}
+                  firstDay={weekStartsOn}
                   sessions={filteredSessions}
                   onTimeRangeSelect={handleTimeRangeSelect}
                   onTimeRangeClear={handleTimeRangeClear}
                   onSessionClick={handleSessionClick}
+                  onSessionScheduleChange={handleSessionScheduleChange}
                 />
               )}
                 {selectedTimeRange && !isSessionDialogOpen && (
@@ -634,8 +783,28 @@ function DashboardPage() {
                       setSelectedSession(null);
                     }}
                     onDelete={() => handleSessionDelete(selectedSession)}
+                    onDeleteFuture={() => void handleFutureSessionDelete(selectedSession)}
                     onComplete={() => { setSessionToComplete(selectedSession); setSelectedSession(null); }}
                     onCancel={() => void handleSessionCancel(selectedSession)}
+                    onDuplicate={() => { setDuplicatingSession(selectedSession); setSelectedSession(null); }}
+                    onDuplicateNextWeek={() => void duplicateSessionNextWeek(selectedSession)}
+                    onMakeRecurring={() => { setRecurrenceSource(selectedSession); setSelectedSession(null); }}
+                  />
+                )}
+
+                {recurrenceSource && <RecurrenceDialog title={recurrenceSource.title} onClose={() => setRecurrenceSource(null)} onCreate={(occurrences) => void createRecurrence(recurrenceSource, occurrences)} />}
+
+                {duplicatingSession && (
+                  <SessionDialog
+                    start={new Date(`${duplicatingSession.sessionDate}T${duplicatingSession.startTime}`)}
+                    end={new Date(`${duplicatingSession.sessionDate}T${duplicatingSession.endTime}`)}
+                    sessionToDuplicate={duplicatingSession}
+                    onClose={() => setDuplicatingSession(null)}
+                    onCreated={(createdSession) => {
+                      setSessions((items) => [...items, createdSession]);
+                      setUpcomingSessionSource((items) => [...items, createdSession]);
+                      setDuplicatingSession(null);
+                    }}
                   />
                 )}
 

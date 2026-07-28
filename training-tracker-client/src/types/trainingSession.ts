@@ -13,6 +13,7 @@ export interface TrainingSession {
   status: string;
   rating: number | null;
   notes: string | null;
+  recurrenceGroupId: string | null;
   exercises: TrainingSessionExercise[];
   createdAt: string;
   updatedAt: string;
@@ -34,6 +35,7 @@ export interface CreateTrainingSessionRequest {
   status: string;
   rating: number | null;
   notes: string | null;
+  recurrenceGroupId?: string | null;
   exercises?: CreateTrainingSessionExerciseRequest[];
 }
 

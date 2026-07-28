@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
 import DashboardPage from './pages/DashboardPage';
 import SportFoldersPage from './pages/SportFoldersPage';
@@ -8,8 +8,15 @@ import ProfilePage from './pages/ProfilePage';
 function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'sports' | 'profile'>('home');
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user ?? null);
+  const [authMessage, setAuthMessage] = useState('');
 
-  if (!user) return <AuthPage onAuthenticated={() => setUser(JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user ?? null)} />;
+  useEffect(() => {
+    const handleExpired = () => { setUser(null); setAuthMessage('Your session expired. Please sign in again.'); };
+    window.addEventListener('training-tracker-auth-expired', handleExpired);
+    return () => window.removeEventListener('training-tracker-auth-expired', handleExpired);
+  }, []);
+
+  if (!user) return <AuthPage initialMessage={authMessage} onAuthenticated={() => { setAuthMessage(''); setUser(JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user ?? null); }} />;
   const signOut = () => { localStorage.removeItem('training-tracker-auth'); setUser(null); };
 
   return (

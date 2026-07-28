@@ -8,6 +8,7 @@ import timeGridPlugin from '@fullcalendar/react/timegrid';
 import type { TrainingSession } from '../types/trainingSession';
 import '@fullcalendar/react/skeleton.css';
 import '@fullcalendar/react/themes/monarch/theme.css';
+import '@fullcalendar/react/themes/monarch/palettes/purple.css';
 import dayGridPlugin from '@fullcalendar/react/daygrid';
 
 interface TrainingCalendarProps {
@@ -16,6 +17,8 @@ interface TrainingCalendarProps {
   onTimeRangeSelect: (start: Date, end: Date) => void;
   onTimeRangeClear: () => void;
   onSessionClick: (sessionId: number) => void;
+  onSessionScheduleChange: (sessionId: number, start: Date, end: Date) => void;
+  firstDay?: number;
   view?: 'timeGridWeek' | 'dayGridMonth';
 }
 
@@ -58,6 +61,8 @@ function TrainingCalendar({
   onTimeRangeSelect,
   onTimeRangeClear,
   onSessionClick,
+  onSessionScheduleChange,
+  firstDay = 1,
   view = 'timeGridWeek'
 }: TrainingCalendarProps) {
   const calendarWrapperRef = useRef<HTMLDivElement>(null);
@@ -71,7 +76,12 @@ function TrainingCalendar({
         start: session.sessionDate,
         allDay: true,
         color: session.sportFolderColor,
-        extendedProps: { exerciseTooltip: formatExerciseTooltip(session) },
+        textColor: '#ffffff',
+        classNames: ['training-calendar-event'],
+        extendedProps: {
+          exerciseTooltip: formatExerciseTooltip(session),
+          eventColor: session.sportFolderColor,
+        },
       };
     }
 
@@ -81,7 +91,12 @@ function TrainingCalendar({
       start: `${session.sessionDate}T${session.startTime}`,
       end: `${session.sessionDate}T${session.endTime}`,
       color: session.sportFolderColor,
-      extendedProps: { exerciseTooltip: formatExerciseTooltip(session) },
+      textColor: '#ffffff',
+      classNames: ['training-calendar-event'],
+      extendedProps: {
+        exerciseTooltip: formatExerciseTooltip(session),
+        eventColor: session.sportFolderColor,
+      },
     };
   });
 
@@ -91,10 +106,14 @@ function TrainingCalendar({
       plugins={[themePlugin, timeGridPlugin, interactionPlugin, dayGridPlugin]}
       initialView={view}
       initialDate={initialDate}
-      firstDay={1}
+      firstDay={firstDay}
       events={events}
       eventDisplay="block"
       headerToolbar={false}
+      allDaySlot={false}
+      slotDuration="00:30:00"
+      scrollTime="07:00:00"
+      dayHeaderFormat={{ weekday: 'short', day: 'numeric' }}
       eventContent={(eventInfo) => (
         <div className="calendar-event-content">
           {eventInfo.view.type !== 'dayGridMonth' && (
@@ -104,6 +123,9 @@ function TrainingCalendar({
         </div>
       )}
       eventMouseEnter={(hoverInfo) => {
+        if (hoverInfo.event.extendedProps.exerciseTooltip === 'No exercises logged.') {
+          return;
+        }
         const wrapperBounds = calendarWrapperRef.current?.getBoundingClientRect();
         const eventBounds = hoverInfo.el.getBoundingClientRect();
 
@@ -118,7 +140,19 @@ function TrainingCalendar({
         });
       }}
       eventMouseLeave={() => setExerciseTooltip(null)}
+      eventDidMount={(mountInfo) => {
+        const eventColor = String(mountInfo.event.extendedProps.eventColor);
+
+        mountInfo.el.style.setProperty('background-color', eventColor, 'important');
+        mountInfo.el.style.setProperty('border-color', eventColor, 'important');
+        mountInfo.el.style.setProperty('color', '#ffffff', 'important');
+        mountInfo.el.querySelectorAll('*').forEach((element) => {
+          (element as HTMLElement).style.setProperty('color', '#ffffff', 'important');
+        });
+      }}
       selectable={view === 'timeGridWeek'}
+      editable={view === 'timeGridWeek'}
+      eventDurationEditable={view === 'timeGridWeek'}
       selectMirror
       nowIndicator
       height="auto"
@@ -131,6 +165,24 @@ function TrainingCalendar({
       unselectCancel=".selected-range-actions, .dialog-backdrop"
       eventClick={(clickInfo) => {
         onSessionClick(Number(clickInfo.event.id));
+      }}
+      eventDrop={(changeInfo) => {
+        if (changeInfo.event.start && changeInfo.event.end) {
+          onSessionScheduleChange(
+            Number(changeInfo.event.id),
+            changeInfo.event.start,
+            changeInfo.event.end,
+          );
+        }
+      }}
+      eventResize={(changeInfo) => {
+        if (changeInfo.event.start && changeInfo.event.end) {
+          onSessionScheduleChange(
+            Number(changeInfo.event.id),
+            changeInfo.event.start,
+            changeInfo.event.end,
+          );
+        }
       }}
     />
       {exerciseTooltip && (
