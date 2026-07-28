@@ -5,11 +5,15 @@ interface SessionDetailsDialogProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onDeleteFuture: () => void;
   onComplete: () => void;
   onCancel: () => void;
+  onDuplicate: () => void;
+  onDuplicateNextWeek: () => void;
+  onMakeRecurring: () => void;
 }
 
-function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, onCancel }: SessionDetailsDialogProps) {
+function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onDeleteFuture, onComplete, onCancel, onDuplicate, onDuplicateNextWeek, onMakeRecurring }: SessionDetailsDialogProps) {
   return (
     <div className="dialog-backdrop" role="presentation">
       <section
@@ -30,15 +34,26 @@ function SessionDetailsDialog({ session, onClose, onEdit, onDelete, onComplete, 
           <div><dt>When</dt><dd>{session.sessionDate} · {session.startTime.slice(0, 5)}–{session.endTime.slice(0, 5)}</dd></div>
           <div><dt>Type</dt><dd>{session.sessionType}</dd></div>
           <div><dt>Status</dt><dd>{session.status}</dd></div>
+          {session.recurrenceGroupId && <div><dt>Schedule</dt><dd>Weekly recurring session</dd></div>}
           {session.rating && <div><dt>Rating</dt><dd>{session.rating}/5</dd></div>}
           {session.notes && <div className="session-details-notes"><dt>Notes</dt><dd>{session.notes}</dd></div>}
         </dl>
 
         <div className="session-details-actions">
-          {session.status === 'Planned' && <button type="button" onClick={onComplete}>Complete session</button>}
-          {session.status === 'Planned' && <button className="secondary-button" type="button" onClick={onCancel}>Cancel session</button>}
-          <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
-          <button className="danger-button" type="button" onClick={onDelete}>Delete</button>
+          <div className="session-primary-actions">
+            {session.status === 'Planned' && <button type="button" onClick={onComplete}>Complete</button>}
+            {session.status === 'Planned' && <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>}
+            <button className="secondary-button" type="button" onClick={onEdit}>Edit</button>
+          </div>
+          <div className="session-duplicate-actions">
+            <button className="secondary-button" type="button" onClick={onDuplicate}>Duplicate</button>
+            <button className="secondary-button" type="button" onClick={onDuplicateNextWeek}>Next week</button>
+            {!session.recurrenceGroupId && <button className="secondary-button" type="button" onClick={onMakeRecurring}>Make recurring</button>}
+          </div>
+          <div className="session-danger-actions">
+            <button className="danger-button" type="button" onClick={onDelete}>Delete</button>
+            {session.recurrenceGroupId && <button className="danger-button" type="button" onClick={onDeleteFuture}>Delete this and future</button>}
+          </div>
         </div>
 
         {session.exercises.length > 0 && (

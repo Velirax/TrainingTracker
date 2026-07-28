@@ -60,6 +60,7 @@ public class TrainingSessionsController : ControllerBase
                 Status = session.Status,
                 Rating = session.Rating,
                 Notes = session.Notes,
+                RecurrenceGroupId = session.RecurrenceGroupId,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -100,6 +101,7 @@ public class TrainingSessionsController : ControllerBase
                 Status = session.Status,
                 Rating = session.Rating,
                 Notes = session.Notes,
+                RecurrenceGroupId = session.RecurrenceGroupId,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -142,6 +144,7 @@ public class TrainingSessionsController : ControllerBase
                 Status = session.Status,
                 Rating = session.Rating,
                 Notes = session.Notes,
+                RecurrenceGroupId = session.RecurrenceGroupId,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -209,6 +212,7 @@ public class TrainingSessionsController : ControllerBase
             Status = createDto.Status,
             Rating = createDto.Rating,
             Notes = createDto.Notes,
+            RecurrenceGroupId = createDto.RecurrenceGroupId,
             Exercises = exerciseEntryResult.Entries,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -233,6 +237,7 @@ public class TrainingSessionsController : ControllerBase
             Status = trainingSession.Status,
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
+            RecurrenceGroupId = trainingSession.RecurrenceGroupId,
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
@@ -316,6 +321,7 @@ public class TrainingSessionsController : ControllerBase
         trainingSession.Status = updateDto.Status;
         trainingSession.Rating = updateDto.Rating;
         trainingSession.Notes = updateDto.Notes;
+        trainingSession.RecurrenceGroupId = updateDto.RecurrenceGroupId;
         trainingSession.UpdatedAt = DateTime.UtcNow;
 
         if (exerciseEntries is not null)
@@ -342,6 +348,7 @@ public class TrainingSessionsController : ControllerBase
             Status = trainingSession.Status,
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
+            RecurrenceGroupId = trainingSession.RecurrenceGroupId,
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
@@ -367,6 +374,33 @@ public class TrainingSessionsController : ControllerBase
         _dbContext.TrainingSessions.Remove(trainingSession);
         await _dbContext.SaveChangesAsync();
 
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}/future")]
+    public async Task<IActionResult> DeleteFuture(int id)
+    {
+        var session = await _dbContext.TrainingSessions
+            .FirstOrDefaultAsync(item => item.Id == id && item.UserId == CurrentUserId);
+
+        if (session is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(session.RecurrenceGroupId))
+        {
+            return BadRequest(new { message = "This session is not part of a recurrence." });
+        }
+
+        var futureSessions = await _dbContext.TrainingSessions
+            .Where(item => item.UserId == CurrentUserId &&
+                item.RecurrenceGroupId == session.RecurrenceGroupId &&
+                item.SessionDate >= session.SessionDate)
+            .ToListAsync();
+
+        _dbContext.TrainingSessions.RemoveRange(futureSessions);
+        await _dbContext.SaveChangesAsync();
         return NoContent();
     }
 

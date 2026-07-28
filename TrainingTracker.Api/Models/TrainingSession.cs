@@ -28,6 +28,8 @@ public class TrainingSession
 
     public string? Notes { get; set; }
 
+    public string? RecurrenceGroupId { get; set; }
+
     public ICollection<TrainingSessionExercise> Exercises { get; set; }
         = new List<TrainingSessionExercise>();
 

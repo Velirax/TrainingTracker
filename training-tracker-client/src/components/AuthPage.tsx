@@ -1,10 +1,10 @@
 import { type FormEvent, useState } from 'react';
 
-interface AuthPageProps { onAuthenticated: (name: string) => void; }
+interface AuthPageProps { onAuthenticated: (name: string) => void; initialMessage?: string; }
 
-export default function AuthPage({ onAuthenticated }: AuthPageProps) {
+export default function AuthPage({ onAuthenticated, initialMessage = '' }: AuthPageProps) {
   const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [displayName, setDisplayName] = useState(''); const [error, setError] = useState('');
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [displayName, setDisplayName] = useState(''); const [error, setError] = useState(initialMessage);
   async function submit(event: FormEvent) {
     event.preventDefault(); setError('');
     const response = await fetch(`http://localhost:5205/api/auth/${isRegistering ? 'register' : 'login'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(isRegistering ? { email, password, displayName } : { email, password }) });

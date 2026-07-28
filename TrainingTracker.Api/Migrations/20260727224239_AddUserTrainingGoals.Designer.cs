@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TrainingTracker.Api.Data;
 
@@ -11,9 +12,11 @@ using TrainingTracker.Api.Data;
 namespace TrainingTracker.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260727224239_AddUserTrainingGoals")]
+    partial class AddUserTrainingGoals
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -46,11 +49,23 @@ namespace TrainingTracker.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int>("MonthlyMinutesGoal")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MonthlySessionGoal")
+                        .HasColumnType("int");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("WeekStartsOn")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WeeklyMinutesGoal")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WeeklySessionGoal")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
