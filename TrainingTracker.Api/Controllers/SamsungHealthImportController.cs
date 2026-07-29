@@ -149,4 +149,82 @@ public class SamsungHealthImportController : ControllerBase
 
         return Ok(new { imported = sessionsToAdd.Count, skippedDuplicates });
     }
+
+    [HttpPost("steps")]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<ActionResult<object>> ImportSteps([FromForm] IFormFile? file)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { message = "Choose a CSV file exported from Samsung Health." });
+        }
+
+        var lines = new List<string>();
+        using (var reader = new StreamReader(file.OpenReadStream(), Encoding.UTF8))
+        {
+            string? line;
+            while ((line = await reader.ReadLineAsync()) is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    lines.Add(line);
+                }
+            }
+        }
+
+        var rows = SamsungHealthStepsCsvParser.Parse(lines);
+
+        if (rows.Count == 0)
+        {
+            return BadRequest(new
+            {
+                message = "Couldn't find any recognizable step data in this file. Samsung Health's export is a " +
+                    "zip with one CSV per data type — make sure you're uploading the step/pedometer CSV."
+            });
+        }
+
+        var dates = rows.Select(row => row.Date).ToList();
+        var existingByDate = await _dbContext.DailySteps
+            .Where(entry => entry.UserId == CurrentUserId && dates.Contains(entry.Date))
+            .ToDictionaryAsync(entry => entry.Date);
+
+        var added = 0;
+        var updated = 0;
+
+        foreach (var row in rows)
+        {
+            if (existingByDate.TryGetValue(row.Date, out var existing))
+            {
+                if (existing.StepCount == row.StepCount)
+                {
+                    continue;
+                }
+
+                existing.StepCount = row.StepCount;
+                existing.UpdatedAt = DateTime.UtcNow;
+                updated++;
+            }
+            else
+            {
+                _dbContext.DailySteps.Add(new DailySteps
+                {
+                    UserId = CurrentUserId,
+                    Date = row.Date,
+                    StepCount = row.StepCount,
+                    UpdatedAt = DateTime.UtcNow
+                });
+                added++;
+            }
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new
+        {
+            added,
+            updated,
+            rangeStart = rows[0].Date,
+            rangeEnd = rows[^1].Date
+        });
+    }
 }

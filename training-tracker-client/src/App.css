@@ -1175,7 +1175,7 @@ li {
 /* ---- Stat strip ---- */
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1px;
   background: var(--border-subtle);
   border: 1px solid var(--border-subtle);
@@ -1301,6 +1301,15 @@ li {
   border-radius: 5px;
   padding: 1px 6px;
   font-weight: 700;
+}
+
+.day-steps {
+  align-self: flex-end;
+  margin-top: -3px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .sess-tag {

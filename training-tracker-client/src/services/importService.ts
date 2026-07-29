@@ -42,6 +42,29 @@ export async function previewSamsungHealthImport(file: File): Promise<SamsungHea
   return response.json() as Promise<SamsungHealthImportRow[]>;
 }
 
+export interface SamsungHealthStepsImportResult {
+  added: number;
+  updated: number;
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+export async function importSamsungHealthSteps(file: File): Promise<SamsungHealthStepsImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiFetch(`${apiBaseUrl}/imports/samsung-health/steps`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, 'Could not import step data.'));
+  }
+
+  return response.json() as Promise<SamsungHealthStepsImportResult>;
+}
+
 export async function commitSamsungHealthImport(
   rows: SamsungHealthCommitRow[],
 ): Promise<{ imported: number; skippedDuplicates: number }> {

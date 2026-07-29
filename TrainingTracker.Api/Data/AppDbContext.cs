@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<ExerciseSportFolder> ExerciseSportFolders { get; set; }
     public DbSet<AppUser> Users { get; set; }
     public DbSet<WorkoutTemplate> WorkoutTemplates { get; set; }
+    public DbSet<DailySteps> DailySteps { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,5 +55,9 @@ public class AppDbContext : DbContext
             .WithMany(exercise => exercise.TrainingSessionExercises)
             .HasForeignKey(item => item.ExerciseId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DailySteps>()
+            .HasIndex(entry => new { entry.UserId, entry.Date })
+            .IsUnique();
     }
 }

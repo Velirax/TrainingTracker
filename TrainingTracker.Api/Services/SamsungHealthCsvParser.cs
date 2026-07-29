@@ -1,6 +1,6 @@
 using System.Globalization;
-using System.Text;
 using TrainingTracker.Api.Dtos;
+using static TrainingTracker.Api.Services.CsvParsingHelpers;
 
 namespace TrainingTracker.Api.Services;
 
@@ -34,7 +34,7 @@ public static class SamsungHealthCsvParser
 
     public static List<SamsungHealthImportRowDto> Parse(List<string> lines)
     {
-        var headerRowIndex = FindHeaderRowIndex(lines);
+        var headerRowIndex = FindHeaderRowIndex(lines, HeaderKeywords);
 
         if (headerRowIndex < 0)
         {
@@ -133,101 +133,6 @@ public static class SamsungHealthCsvParser
         return results;
     }
 
-    private static string? Cell(List<string> fields, int column)
-    {
-        if (column < 0 || column >= fields.Count)
-        {
-            return null;
-        }
-
-        var value = fields[column].Trim().Trim('"').Trim();
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private static int FindHeaderRowIndex(List<string> lines)
-    {
-        var scanLimit = Math.Min(lines.Count, 5);
-
-        for (var index = 0; index < scanLimit; index++)
-        {
-            var lower = lines[index].ToLowerInvariant();
-            var hits = HeaderKeywords.Count(keyword => lower.Contains(keyword));
-
-            if (hits >= 2)
-            {
-                return index;
-            }
-        }
-
-        return -1;
-    }
-
-    private static int FindColumn(List<string> headers, string[] aliases, int[] exclude)
-    {
-        for (var index = 0; index < headers.Count; index++)
-        {
-            if (exclude.Contains(index))
-            {
-                continue;
-            }
-
-            var header = headers[index];
-
-            if (aliases.Any(alias =>
-                header == alias ||
-                header.EndsWith("." + alias, StringComparison.Ordinal) ||
-                header.Contains(alias, StringComparison.Ordinal)))
-            {
-                return index;
-            }
-        }
-
-        return -1;
-    }
-
-    private static readonly string[] TimestampFormats =
-    [
-        "yyyy-MM-dd HH:mm:ss.fff",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-ddTHH:mm:ss.fffZ",
-        "yyyy-MM-ddTHH:mm:ssZ",
-        "yyyy-MM-ddTHH:mm:ss",
-        "MM/dd/yyyy HH:mm:ss",
-        "yyyy.MM.dd HH:mm",
-        "yyyy-MM-dd",
-    ];
-
-    private static DateTime? ParseTimestamp(string? raw)
-    {
-        if (raw is null)
-        {
-            return null;
-        }
-
-        if (long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numeric) && numeric > 0)
-        {
-            try
-            {
-                return raw.Length >= 13
-                    ? DateTimeOffset.FromUnixTimeMilliseconds(numeric).LocalDateTime
-                    : DateTimeOffset.FromUnixTimeSeconds(numeric).LocalDateTime;
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                return null;
-            }
-        }
-
-        if (DateTime.TryParseExact(raw, TimestampFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var exact))
-        {
-            return exact;
-        }
-
-        return DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
-            ? parsed
-            : null;
-    }
-
     private static int? ParseDurationMinutes(string? raw)
     {
         if (raw is null ||
@@ -241,32 +146,5 @@ public static class SamsungHealthCsvParser
         // values as already-minutes rather than assume every export agrees.
         var minutes = value > 1000 ? value / 60000.0 : value;
         return (int)Math.Round(minutes);
-    }
-
-    private static List<string> SplitCsvLine(string line)
-    {
-        var fields = new List<string>();
-        var current = new StringBuilder();
-        var inQuotes = false;
-
-        foreach (var character in line)
-        {
-            if (character == '"')
-            {
-                inQuotes = !inQuotes;
-            }
-            else if (character == ',' && !inQuotes)
-            {
-                fields.Add(current.ToString());
-                current.Clear();
-            }
-            else
-            {
-                current.Append(character);
-            }
-        }
-
-        fields.Add(current.ToString());
-        return fields;
     }
 }

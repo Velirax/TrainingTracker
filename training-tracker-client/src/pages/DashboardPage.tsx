@@ -9,6 +9,8 @@ import {
 } from '../services/trainingSessionService';
 import { getSportFolders } from '../services/sportFolderService';
 import { getPreferences } from '../services/profileService';
+import { getSteps } from '../services/stepsService';
+import type { DailySteps } from '../types/dailySteps';
 import type { SportFolder } from '../types/sportFolder';
 import type { TrainingSession } from '../types/trainingSession';
 import WeeklyLedger from '../components/WeeklyLedger';
@@ -181,6 +183,8 @@ function DashboardPage() {
     const [distanceUnit, setDistanceUnit] = useState<'km' | 'mi'>('km');
     const weekDates = getWeekDates(selectedDate, weekStartsOn);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
+    const [ledgerSteps, setLedgerSteps] = useState<DailySteps[]>([]);
+    const [overviewSteps, setOverviewSteps] = useState<DailySteps[]>([]);
     const [overviewSessions, setOverviewSessions] = useState<TrainingSession[]>([]);
     const [overviewRange, setOverviewRange] = useState<'week' | 'month' | 'year' | 'custom'>('week');
     const [customOverviewStart, setCustomOverviewStart] = useState(formatDateForApi(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
@@ -254,6 +258,8 @@ function DashboardPage() {
     const todaySessions = upcomingSessionSource.filter((session) =>
       session.status === 'Planned' && session.sessionDate === todayKey,
     );
+    const stepsByDate = Object.fromEntries(ledgerSteps.map((entry) => [entry.date, entry.stepCount]));
+    const totalSteps = overviewSteps.reduce((total, entry) => total + entry.stepCount, 0);
 
     useEffect(() => {
       getSportFolders().then(setSportFolders).catch(() => setError('Could not load sports.'));
@@ -301,6 +307,18 @@ function DashboardPage() {
     }, [selectedDate, calendarView, weekStartsOn]);
 
     useEffect(() => {
+      const [startDate, endDate] = calendarView === 'week'
+          ? [weekDates[0], weekDates[6]]
+          : getMonthGridDates(selectedDate, weekStartsOn);
+
+      getSteps(formatDateForApi(startDate), formatDateForApi(endDate))
+        .then(setLedgerSteps)
+        .catch(() => {
+          // Step badges simply stay hidden if this fails to load.
+        });
+    }, [selectedDate, calendarView, weekStartsOn]);
+
+    useEffect(() => {
       const [startDate, endDate] = (() => {
         if (overviewRange === 'custom') return [customOverviewStart, customOverviewEnd];
         if (overviewRange === 'week') {
@@ -316,6 +334,25 @@ function DashboardPage() {
 
       getTrainingSessions(startDate, endDate).then(setOverviewSessions).catch(() => {
         setError('Could not load dashboard metrics.');
+      });
+    }, [selectedDate, overviewRange, customOverviewStart, customOverviewEnd, weekStartsOn]);
+
+    useEffect(() => {
+      const [startDate, endDate] = (() => {
+        if (overviewRange === 'custom') return [customOverviewStart, customOverviewEnd];
+        if (overviewRange === 'week') {
+          const dates = getWeekDates(selectedDate, weekStartsOn);
+          return [formatDateForApi(dates[0]), formatDateForApi(dates[6])];
+        }
+        if (overviewRange === 'year') {
+          return [`${selectedDate.getFullYear()}-01-01`, `${selectedDate.getFullYear()}-12-31`];
+        }
+        const [start, end] = getMonthDates(selectedDate);
+        return [formatDateForApi(start), formatDateForApi(end)];
+      })();
+
+      getSteps(startDate, endDate).then(setOverviewSteps).catch(() => {
+        // The steps stat simply stays at 0 if this fails to load.
       });
     }, [selectedDate, overviewRange, customOverviewStart, customOverviewEnd, weekStartsOn]);
 
@@ -584,6 +621,10 @@ function DashboardPage() {
             <div className="stat-label">Calories burned</div>
             <div className="stat-value">{sumCalories(completedSessions).toLocaleString()}<small>kcal est.</small></div>
           </div>
+          <div className="stat">
+            <div className="stat-label">Steps</div>
+            <div className="stat-value">{totalSteps.toLocaleString()}<small>this period</small></div>
+          </div>
         </div>
         <section className="dashboard-summary">
           <div className="dashboard-overview">
@@ -735,6 +776,7 @@ function DashboardPage() {
                 anchorDate={selectedDate}
                 firstDay={weekStartsOn}
                 sessions={filteredSessions}
+                stepsByDate={stepsByDate}
                 onSessionClick={handleSessionClick}
                 onDayClick={handleDayClick}
                 onSessionReschedule={(sessionId, newDate) => void handleSessionReschedule(sessionId, newDate)}
