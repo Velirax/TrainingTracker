@@ -218,6 +218,7 @@ function SportFolderDetail({ folder, onBack, onUpdated }: SportFolderDetailProps
   }, [folder.id]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional view-state reset on folder switch, gated on folder.id so it only fires on an actual navigation
     setExercisePage(1);
     setProgressExerciseId(null);
     setSelectedLogMetric('');

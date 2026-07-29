@@ -18,4 +18,4 @@ export interface CreateExerciseRequest {
   sportFolderIds: number[];
 }
 
-export interface UpdateExerciseRequest extends CreateExerciseRequest {}
+export type UpdateExerciseRequest = CreateExerciseRequest;
