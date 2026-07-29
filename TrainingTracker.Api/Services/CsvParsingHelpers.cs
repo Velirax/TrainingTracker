@@ -66,23 +66,44 @@ public static class CsvParsingHelpers
         return -1;
     }
 
+    // Real Samsung Health exports have decoy columns (e.g. an always-empty
+    // "total_calorie" alongside the real, namespaced "com.samsung.health.exercise.calorie").
+    // Checking every alias at one match quality before loosening to the next
+    // — rather than scanning headers left-to-right and taking the first hit —
+    // keeps a strong match from losing to a weaker one that merely appears earlier.
     public static int FindColumn(List<string> headers, string[] aliases, int[] exclude)
     {
-        for (var index = 0; index < headers.Count; index++)
+        var exactMatch = FindColumnByPredicate(headers, aliases, exclude,
+            (header, alias) => header == alias);
+        if (exactMatch >= 0) return exactMatch;
+
+        var namespacedMatch = FindColumnByPredicate(headers, aliases, exclude,
+            (header, alias) => header.EndsWith("." + alias, StringComparison.Ordinal));
+        if (namespacedMatch >= 0) return namespacedMatch;
+
+        return FindColumnByPredicate(headers, aliases, exclude,
+            (header, alias) => header.Contains(alias, StringComparison.Ordinal));
+    }
+
+    private static int FindColumnByPredicate(
+        List<string> headers,
+        string[] aliases,
+        int[] exclude,
+        Func<string, string, bool> matches)
+    {
+        foreach (var alias in aliases)
         {
-            if (exclude.Contains(index))
+            for (var index = 0; index < headers.Count; index++)
             {
-                continue;
-            }
+                if (exclude.Contains(index))
+                {
+                    continue;
+                }
 
-            var header = headers[index];
-
-            if (aliases.Any(alias =>
-                header == alias ||
-                header.EndsWith("." + alias, StringComparison.Ordinal) ||
-                header.Contains(alias, StringComparison.Ordinal)))
-            {
-                return index;
+                if (matches(headers[index], alias))
+                {
+                    return index;
+                }
             }
         }
 
