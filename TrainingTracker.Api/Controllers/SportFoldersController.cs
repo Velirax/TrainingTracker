@@ -38,7 +38,7 @@ public class SportFoldersController : ControllerBase
                 Color = folder.Color,
                 Icon = folder.Icon,
                 IsArchived = folder.IsArchived,
-                SessionCount = folder.TrainingSessions.Count,
+                SessionCount = folder.TrainingSessions.Count(session => session.UserId == CurrentUserId),
                 CreatedAt = folder.CreatedAt,
                 UpdatedAt = folder.UpdatedAt
             })
@@ -60,7 +60,7 @@ public class SportFoldersController : ControllerBase
                 Color = folder.Color,
                 Icon = folder.Icon,
                 IsArchived = folder.IsArchived,
-                SessionCount = folder.TrainingSessions.Count,
+                SessionCount = folder.TrainingSessions.Count(session => session.UserId == CurrentUserId),
                 CreatedAt = folder.CreatedAt,
                 UpdatedAt = folder.UpdatedAt
             })
@@ -73,41 +73,6 @@ public class SportFoldersController : ControllerBase
 
         return Ok(sportFolder);
     }
-    [HttpPost]
-    public async Task<ActionResult<SportFolderDto>> Create([FromBody] CreateSportFolderDto createDto)
-    {
-        var sportFolder = new SportFolder
-        {
-            // Temporary until ASP.NET Core Identity is introduced.
-            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "development-user",
-            Name = createDto.Name,
-            Description = createDto.Description,
-            Color = createDto.Color,
-            Icon = createDto.Icon,
-            IsArchived = false,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.SportFolders.Add(sportFolder);
-        await _dbContext.SaveChangesAsync();
-
-        var response = new SportFolderDto
-        {
-            Id = sportFolder.Id,
-            Name = sportFolder.Name,
-            Description = sportFolder.Description,
-            Color = sportFolder.Color,
-            Icon = sportFolder.Icon,
-            IsArchived = sportFolder.IsArchived,
-            SessionCount = 0,
-            CreatedAt = sportFolder.CreatedAt,
-            UpdatedAt = sportFolder.UpdatedAt
-        };
-
-        return StatusCode(StatusCodes.Status201Created, response);
-    }
-
     [HttpPut("{id:int}")]
     public async Task<ActionResult<SportFolderDto>> Update(int id, [FromBody] UpdateSportFolderDto updateDto)
     {
@@ -141,7 +106,7 @@ public class SportFoldersController : ControllerBase
             Icon = sportFolder.Icon,
             IsArchived = sportFolder.IsArchived,
             SessionCount = await _dbContext.TrainingSessions.CountAsync(
-                session => session.SportFolderId == sportFolder.Id),
+                session => session.SportFolderId == sportFolder.Id && session.UserId == CurrentUserId),
             CreatedAt = sportFolder.CreatedAt,
             UpdatedAt = sportFolder.UpdatedAt
         });
@@ -153,6 +118,11 @@ public class SportFoldersController : ControllerBase
         var sportFolder = await _dbContext.SportFolders.FindAsync(id);
 
         if (sportFolder is null)
+        {
+            return NotFound();
+        }
+
+        if (sportFolder.UserId != CurrentUserId)
         {
             return NotFound();
         }

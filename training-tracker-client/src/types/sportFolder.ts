@@ -10,13 +10,10 @@ export interface SportFolder {
   updatedAt: string;
 }
 
-export interface CreateSportFolderRequest {
+export interface UpdateSportFolderRequest {
   name: string;
   description: string | null;
   color: string;
   icon: string | null;
-}
-
-export interface UpdateSportFolderRequest extends CreateSportFolderRequest {
   isArchived: boolean;
 }
