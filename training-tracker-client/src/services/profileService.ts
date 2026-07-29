@@ -5,6 +5,10 @@ export interface Preferences {
   weekStartsOn: number;
   defaultCalendarView: 'week' | 'month';
   weightKg: number | null;
+  weeklyTrainingMinutesGoal: number | null;
+  dailyStepsGoal: number | null;
+  streakGoalDays: number | null;
+  lastStepsImportAt: string | null;
 }
 
 export async function getPreferences(): Promise<Preferences> {

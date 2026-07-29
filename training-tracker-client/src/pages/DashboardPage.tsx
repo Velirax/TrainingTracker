@@ -19,6 +19,8 @@ import SessionDialog from '../components/SessionDialog';
 import SessionReviewDialog from '../components/SessionReviewDialog';
 import CompleteSessionDialog from '../components/CompleteSessionDialog';
 import RecurrenceDialog from '../components/RecurrenceDialog';
+import StepsTrendChart from '../components/StepsTrendChart';
+import GoalBar from '../components/GoalBar';
 
 const weekRangeFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -207,6 +209,10 @@ function DashboardPage() {
     const [duplicatingSession, setDuplicatingSession] = useState<TrainingSession | null>(null);
     const [sessionsNeedingReview, setSessionsNeedingReview] = useState<TrainingSession[]>([]);
     const [recurrenceSource, setRecurrenceSource] = useState<TrainingSession | null>(null);
+    const [weeklyTrainingMinutesGoal, setWeeklyTrainingMinutesGoal] = useState<number | null>(null);
+    const [dailyStepsGoal, setDailyStepsGoal] = useState<number | null>(null);
+    const [streakGoalDays, setStreakGoalDays] = useState<number | null>(null);
+    const [stepsTrend, setStepsTrend] = useState<DailySteps[]>([]);
     const filteredSessions = sessions.filter((session) => {
       const matchesSport = !sportFilter || session.sportFolderId === Number(sportFilter);
       const matchesStatus = !statusFilter || session.status === statusFilter;
@@ -260,6 +266,16 @@ function DashboardPage() {
     );
     const stepsByDate = Object.fromEntries(ledgerSteps.map((entry) => [entry.date, entry.stepCount]));
     const totalSteps = overviewSteps.reduce((total, entry) => total + entry.stepCount, 0);
+    const currentStreak = computeStreak(streakHistorySessions);
+    const lastCompletedDate = streakHistorySessions
+      .filter((session) => session.status === 'Completed')
+      .map((session) => session.sessionDate)
+      .sort()
+      .at(-1) ?? null;
+    const daysSinceLastSession = lastCompletedDate
+      ? Math.floor((new Date(`${todayKey}T00:00:00`).getTime() - new Date(`${lastCompletedDate}T00:00:00`).getTime()) / 86_400_000)
+      : null;
+    const showInactivityNudge = daysSinceLastSession !== null && daysSinceLastSession >= 3;
 
     useEffect(() => {
       getSportFolders().then(setSportFolders).catch(() => setError('Could not load sports.'));
@@ -274,9 +290,24 @@ function DashboardPage() {
         setOverviewRange(preferredCalendarView);
         setWeekStartsOn(preferences.weekStartsOn);
         setDistanceUnit(preferences.distanceUnit);
+        setWeeklyTrainingMinutesGoal(preferences.weeklyTrainingMinutesGoal);
+        setDailyStepsGoal(preferences.dailyStepsGoal);
+        setStreakGoalDays(preferences.streakGoalDays);
       }).catch(() => {
         // The calendar remains usable with its week-view default.
       });
+    }, []);
+
+    useEffect(() => {
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+
+      getSteps(formatDateForApi(thirtyDaysAgo), formatDateForApi(today))
+        .then(setStepsTrend)
+        .catch(() => {
+          // The trend chart simply stays empty if this fails to load.
+        });
     }, []);
 
 
@@ -567,9 +598,10 @@ function DashboardPage() {
     <main className="calendar-page" data-distance-unit={distanceUnit}>
         <div className="dashboard-intro">
           {successMessage && <div className="success-message" role="status">{successMessage}<button type="button" onClick={() => setSuccessMessage(null)}>Dismiss</button></div>}
-          {(todaySessions.length > 0 || sessionsNeedingReview.length > 0) && <section className="dashboard-reminders" aria-label="Session reminders">
+          {(todaySessions.length > 0 || sessionsNeedingReview.length > 0 || showInactivityNudge) && <section className="dashboard-reminders" aria-label="Session reminders">
             {todaySessions.length > 0 && <button type="button" onClick={() => handleSessionClick(todaySessions[0].id)}><strong>Today</strong><span>{todaySessions.length} planned {todaySessions.length === 1 ? 'session' : 'sessions'}</span></button>}
             {sessionsNeedingReview.length > 0 && <span><strong>Needs review</strong> {sessionsNeedingReview.length} past planned {sessionsNeedingReview.length === 1 ? 'session' : 'sessions'}</span>}
+            {showInactivityNudge && <span><strong>Needs attention</strong> No sessions logged in {daysSinceLastSession} days</span>}
           </section>}
           <header className="page-header">
             <span className="page-kicker">Your training space</span>
@@ -604,6 +636,9 @@ function DashboardPage() {
           <div className="stat">
             <div className="stat-label">Training load</div>
             <div className="stat-value">{(totalTrainingMinutes / 60).toFixed(1)}<small>hrs this period</small></div>
+            {overviewRange === 'week' && weeklyTrainingMinutesGoal && (
+              <GoalBar current={totalTrainingMinutes} goal={weeklyTrainingMinutesGoal} label={`of ${(weeklyTrainingMinutesGoal / 60).toFixed(1)}h goal`} />
+            )}
           </div>
           <div className="stat">
             <div className="stat-label">Sessions completed</div>
@@ -611,7 +646,8 @@ function DashboardPage() {
           </div>
           <div className="stat">
             <div className="stat-label">Current streak</div>
-            <div className="stat-value">{computeStreak(streakHistorySessions)}<small>days</small></div>
+            <div className="stat-value">{currentStreak}<small>days</small></div>
+            {streakGoalDays && <GoalBar current={currentStreak} goal={streakGoalDays} label={`of ${streakGoalDays}d goal`} />}
           </div>
           <div className="stat">
             <div className="stat-label">Avg. session</div>
@@ -624,8 +660,12 @@ function DashboardPage() {
           <div className="stat">
             <div className="stat-label">Steps</div>
             <div className="stat-value">{totalSteps.toLocaleString()}<small>this period</small></div>
+            {overviewRange === 'week' && dailyStepsGoal && (
+              <GoalBar current={totalSteps} goal={dailyStepsGoal * 7} label={`of ${(dailyStepsGoal * 7).toLocaleString()} goal`} />
+            )}
           </div>
         </div>
+        <StepsTrendChart data={stepsTrend} dailyStepsGoal={dailyStepsGoal} />
         <section className="dashboard-summary">
           <div className="dashboard-overview">
           <h2>

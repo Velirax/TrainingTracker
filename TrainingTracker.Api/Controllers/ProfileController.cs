@@ -15,7 +15,17 @@ public class ProfileController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> GetPreferences()
     {
         var user = await db.Users.FindAsync(UserId);
-        return user is null ? NotFound() : Ok(new { user.DistanceUnit, user.WeekStartsOn, user.DefaultCalendarView, user.WeightKg });
+        return user is null ? NotFound() : Ok(new
+        {
+            user.DistanceUnit,
+            user.WeekStartsOn,
+            user.DefaultCalendarView,
+            user.WeightKg,
+            user.WeeklyTrainingMinutesGoal,
+            user.DailyStepsGoal,
+            user.StreakGoalDays,
+            user.LastStepsImportAt
+        });
     }
 
     [HttpPut("preferences")]
@@ -27,14 +37,36 @@ public class ProfileController(AppDbContext db) : ControllerBase
         if (request.WeightKg is not null && request.WeightKg is < 20 or > 300)
             return BadRequest(new { message = "Weight must be between 20 and 300 kg." });
 
+        if (request.WeeklyTrainingMinutesGoal is not null && request.WeeklyTrainingMinutesGoal <= 0)
+            return BadRequest(new { message = "Weekly training goal must be greater than zero." });
+
+        if (request.DailyStepsGoal is not null && request.DailyStepsGoal <= 0)
+            return BadRequest(new { message = "Daily steps goal must be greater than zero." });
+
+        if (request.StreakGoalDays is not null && request.StreakGoalDays <= 0)
+            return BadRequest(new { message = "Streak goal must be greater than zero." });
+
         var user = await db.Users.FindAsync(UserId);
         if (user is null) return NotFound();
         user.DistanceUnit = request.DistanceUnit;
         user.WeekStartsOn = request.WeekStartsOn;
         user.DefaultCalendarView = request.DefaultCalendarView;
         user.WeightKg = request.WeightKg;
+        user.WeeklyTrainingMinutesGoal = request.WeeklyTrainingMinutesGoal;
+        user.DailyStepsGoal = request.DailyStepsGoal;
+        user.StreakGoalDays = request.StreakGoalDays;
         await db.SaveChangesAsync();
-        return Ok(new { user.DistanceUnit, user.WeekStartsOn, user.DefaultCalendarView, user.WeightKg });
+        return Ok(new
+        {
+            user.DistanceUnit,
+            user.WeekStartsOn,
+            user.DefaultCalendarView,
+            user.WeightKg,
+            user.WeeklyTrainingMinutesGoal,
+            user.DailyStepsGoal,
+            user.StreakGoalDays,
+            user.LastStepsImportAt
+        });
     }
 
     public class PreferencesRequest
@@ -43,5 +75,8 @@ public class ProfileController(AppDbContext db) : ControllerBase
         public int WeekStartsOn { get; set; } = 1;
         public string DefaultCalendarView { get; set; } = "week";
         public double? WeightKg { get; set; }
+        public int? WeeklyTrainingMinutesGoal { get; set; }
+        public int? DailyStepsGoal { get; set; }
+        public int? StreakGoalDays { get; set; }
     }
 }

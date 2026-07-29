@@ -17,6 +17,19 @@ function formatDateForApi(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function formatRelativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diffMs = Date.now() - then;
+  const diffMinutes = Math.floor(diffMs / 60_000);
+
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+}
+
 function computeLongestStreak(sessions: TrainingSession[]): number {
   const completedDates = Array.from(new Set(
     sessions.filter((session) => session.status === 'Completed').map((session) => session.sessionDate),
@@ -42,7 +55,16 @@ function computeLongestStreak(sessions: TrainingSession[]): number {
 }
 
 export default function ProfilePage({ user, onSignOut }: ProfilePageProps) {
-  const [preferences, setPreferences] = useState<Preferences>({ distanceUnit: 'km', weekStartsOn: 1, defaultCalendarView: 'week', weightKg: null });
+  const [preferences, setPreferences] = useState<Preferences>({
+    distanceUnit: 'km',
+    weekStartsOn: 1,
+    defaultCalendarView: 'week',
+    weightKg: null,
+    weeklyTrainingMinutesGoal: null,
+    dailyStepsGoal: null,
+    streakGoalDays: null,
+    lastStepsImportAt: null,
+  });
   const [message, setMessage] = useState('');
   const [lifetimeSessions, setLifetimeSessions] = useState<TrainingSession[]>([]);
   const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
@@ -158,6 +180,11 @@ export default function ProfilePage({ user, onSignOut }: ProfilePageProps) {
             />
           </span>
         </div>
+        <p className="import-staleness">
+          {preferences.lastStepsImportAt
+            ? `Steps last imported ${formatRelativeTime(preferences.lastStepsImportAt)}.`
+            : 'Steps have never been imported.'}
+        </p>
         {importMessage && <p role="status">{importMessage}</p>}
       </div>
 
@@ -202,6 +229,39 @@ export default function ProfilePage({ user, onSignOut }: ProfilePageProps) {
               type="number"
               value={preferences.weightKg ?? ''}
               onChange={(event) => setPreferences({ ...preferences, weightKg: event.target.value ? Number(event.target.value) : null })}
+            />
+          </label>
+          <label>Weekly training goal (hours)
+            <input
+              min={0}
+              placeholder="e.g. 5"
+              step="0.5"
+              type="number"
+              value={preferences.weeklyTrainingMinutesGoal ? preferences.weeklyTrainingMinutesGoal / 60 : ''}
+              onChange={(event) => setPreferences({
+                ...preferences,
+                weeklyTrainingMinutesGoal: event.target.value ? Math.round(Number(event.target.value) * 60) : null,
+              })}
+            />
+          </label>
+          <label>Daily steps goal
+            <input
+              min={0}
+              placeholder="e.g. 8000"
+              step="500"
+              type="number"
+              value={preferences.dailyStepsGoal ?? ''}
+              onChange={(event) => setPreferences({ ...preferences, dailyStepsGoal: event.target.value ? Number(event.target.value) : null })}
+            />
+          </label>
+          <label>Streak goal (days)
+            <input
+              min={0}
+              placeholder="e.g. 7"
+              step="1"
+              type="number"
+              value={preferences.streakGoalDays ?? ''}
+              onChange={(event) => setPreferences({ ...preferences, streakGoalDays: event.target.value ? Number(event.target.value) : null })}
             />
           </label>
           <button type="submit">Save preferences</button>

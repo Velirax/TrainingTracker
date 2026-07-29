@@ -195,6 +195,12 @@ public class SamsungHealthImportController : ControllerBase
             .Where(entry => entry.UserId == CurrentUserId && dates.Contains(entry.Date))
             .ToDictionaryAsync(entry => entry.Date);
 
+        var currentUser = await _dbContext.Users.FindAsync(CurrentUserId);
+        if (currentUser is not null)
+        {
+            currentUser.LastStepsImportAt = DateTime.UtcNow;
+        }
+
         var added = 0;
         var updated = 0;
         var flagged = new List<object>();

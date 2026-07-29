@@ -1218,6 +1218,31 @@ li {
   color: var(--text-secondary);
 }
 
+.stat-goal {
+  margin-top: 8px;
+}
+
+.stat-goal-bar {
+  height: 4px;
+  border-radius: 99px;
+  background: var(--chart-track);
+  overflow: hidden;
+}
+
+.stat-goal-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-default);
+}
+
+.stat-goal-label {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
 /* ---- Weekly ledger calendar ---- */
 .ledger {
   background: var(--background-surface);
@@ -2055,4 +2080,113 @@ li {
   background: var(--status-error-bg);
   color: var(--status-error-text);
   font-size: 13px;
+}
+
+.import-staleness {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ---- Steps trend chart ---- */
+.steps-trend {
+  background: var(--background-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 16px 20px 20px;
+  margin: 0 0 20px;
+}
+
+.steps-trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.steps-trend-header h3 {
+  margin: 0;
+  font-family: var(--heading);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.steps-trend-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.steps-trend-toggle {
+  display: flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.steps-trend-toggle button {
+  border: none;
+  background: var(--background-surface);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.steps-trend-toggle button[aria-pressed='true'] {
+  background: var(--accent-default);
+  color: var(--accent-on-accent);
+}
+
+.steps-trend-bars {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 140px;
+  padding-top: 8px;
+}
+
+.steps-trend-goal-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.steps-trend-bar-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 6px;
+}
+
+.steps-trend-bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent-soft);
+}
+
+.steps-trend-bar.goal-met {
+  background: var(--accent-default);
+}
+
+.steps-trend-label {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--text-muted);
 }
