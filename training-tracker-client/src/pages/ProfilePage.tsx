@@ -1,6 +1,9 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import SamsungHealthImportDialog from '../components/SamsungHealthImportDialog';
 import { getPreferences, type Preferences, updatePreferences } from '../services/profileService';
+import { getSportFolders } from '../services/sportFolderService';
 import { getTrainingSessions } from '../services/trainingSessionService';
+import type { SportFolder } from '../types/sportFolder';
 import type { TrainingSession } from '../types/trainingSession';
 
 interface ProfilePageProps { user: { displayName: string; email: string }; onSignOut: () => void; }
@@ -41,10 +44,14 @@ export default function ProfilePage({ user, onSignOut }: ProfilePageProps) {
   const [preferences, setPreferences] = useState<Preferences>({ distanceUnit: 'km', weekStartsOn: 1, defaultCalendarView: 'week', weightKg: null });
   const [message, setMessage] = useState('');
   const [lifetimeSessions, setLifetimeSessions] = useState<TrainingSession[]>([]);
+  const [sportFolders, setSportFolders] = useState<SportFolder[]>([]);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
 
   useEffect(() => { getPreferences().then(setPreferences).catch(() => setMessage('Could not load preferences.')); }, []);
+  useEffect(() => { getSportFolders().then(setSportFolders).catch(() => {}); }, []);
 
-  useEffect(() => {
+  function reloadLifetimeSessions() {
     const threeYearsAgo = new Date();
     threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
     const oneYearAhead = new Date();
@@ -53,7 +60,9 @@ export default function ProfilePage({ user, onSignOut }: ProfilePageProps) {
     getTrainingSessions(formatDateForApi(threeYearsAgo), formatDateForApi(oneYearAhead))
       .then(setLifetimeSessions)
       .catch(() => {});
-  }, []);
+  }
+
+  useEffect(reloadLifetimeSessions, []);
 
   async function save(event: FormEvent) { event.preventDefault(); try { const saved = await updatePreferences(preferences); setPreferences(saved); setMessage('Preferences saved.'); } catch { setMessage('Could not save preferences.'); } }
 
@@ -89,11 +98,23 @@ export default function ProfilePage({ user, onSignOut }: ProfilePageProps) {
         <div className="kv-row">
           <span className="k">Samsung Health</span>
           <span className="v" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="conn-pill not-connected">Not connected</span>
-            <button className="btn primary" style={{ padding: '5px 12px', fontSize: 12 }} type="button" disabled>Connect</button>
+            <span className="conn-pill not-connected">Manual import</span>
+            <button className="btn primary" style={{ padding: '5px 12px', fontSize: 12 }} type="button" onClick={() => setShowImportDialog(true)}>Import CSV</button>
           </span>
         </div>
+        {importMessage && <p role="status">{importMessage}</p>}
       </div>
+
+      {showImportDialog && (
+        <SamsungHealthImportDialog
+          sportFolders={sportFolders}
+          onClose={() => setShowImportDialog(false)}
+          onImported={(count) => {
+            setImportMessage(`Imported ${count} session${count === 1 ? '' : 's'} from Samsung Health.`);
+            reloadLifetimeSessions();
+          }}
+        />
+      )}
 
       <section className="panel profile-preferences">
         <h3>Preferences</h3>

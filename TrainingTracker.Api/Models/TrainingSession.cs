@@ -30,6 +30,10 @@ public class TrainingSession
 
     public string? RecurrenceGroupId { get; set; }
 
+    // Set when a session is created via CSV import (e.g. Samsung Health) so the
+    // recorded calorie figure wins over the app's own MET estimate.
+    public int? ImportedCalories { get; set; }
+
     public ICollection<TrainingSessionExercise> Exercises { get; set; }
         = new List<TrainingSessionExercise>();
 

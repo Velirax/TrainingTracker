@@ -62,6 +62,7 @@ public class TrainingSessionsController : ControllerBase
                 Rating = session.Rating,
                 Notes = session.Notes,
                 RecurrenceGroupId = session.RecurrenceGroupId,
+                ImportedCalories = session.ImportedCalories,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -104,6 +105,7 @@ public class TrainingSessionsController : ControllerBase
                 Rating = session.Rating,
                 Notes = session.Notes,
                 RecurrenceGroupId = session.RecurrenceGroupId,
+                ImportedCalories = session.ImportedCalories,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -148,6 +150,7 @@ public class TrainingSessionsController : ControllerBase
                 Rating = session.Rating,
                 Notes = session.Notes,
                 RecurrenceGroupId = session.RecurrenceGroupId,
+                ImportedCalories = session.ImportedCalories,
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt
             })
@@ -242,6 +245,7 @@ public class TrainingSessionsController : ControllerBase
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
             RecurrenceGroupId = trainingSession.RecurrenceGroupId,
+            ImportedCalories = trainingSession.ImportedCalories,
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
@@ -356,6 +360,7 @@ public class TrainingSessionsController : ControllerBase
             Rating = trainingSession.Rating,
             Notes = trainingSession.Notes,
             RecurrenceGroupId = trainingSession.RecurrenceGroupId,
+            ImportedCalories = trainingSession.ImportedCalories,
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
@@ -532,12 +537,13 @@ public class TrainingSessionsController : ControllerBase
                 .Where(exercise => exercise.TrackingValues.ContainsKey("Calories"))
                 .Sum(exercise => double.TryParse(exercise.TrackingValues["Calories"], out var value) ? value : 0);
 
-            session.Calories = manualTotal > 0
-                ? (int)Math.Round(manualTotal)
-                : CalorieCalculationService.EstimateCalories(
-                    session.SportFolderName,
-                    session.DurationMinutes,
-                    weightKg);
+            session.Calories = session.ImportedCalories
+                ?? (manualTotal > 0
+                    ? (int)Math.Round(manualTotal)
+                    : CalorieCalculationService.EstimateCalories(
+                        session.SportFolderName,
+                        session.DurationMinutes,
+                        weightKg));
         }
     }
 
