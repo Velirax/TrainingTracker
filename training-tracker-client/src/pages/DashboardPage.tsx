@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createTrainingSession,
   deleteTrainingSession,
@@ -181,7 +181,7 @@ function DashboardPage() {
     const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
     const [weekStartsOn, setWeekStartsOn] = useState(1);
     const [distanceUnit, setDistanceUnit] = useState<'km' | 'mi'>('km');
-    const weekDates = getWeekDates(selectedDate, weekStartsOn);
+    const weekDates = useMemo(() => getWeekDates(selectedDate, weekStartsOn), [selectedDate, weekStartsOn]);
     const [sessions, setSessions] = useState<TrainingSession[]>([]);
     const [ledgerSteps, setLedgerSteps] = useState<DailySteps[]>([]);
     const [overviewSteps, setOverviewSteps] = useState<DailySteps[]>([]);
@@ -304,7 +304,7 @@ function DashboardPage() {
         }
 
         loadTrainingSessions();
-    }, [selectedDate, calendarView, weekStartsOn]);
+    }, [selectedDate, calendarView, weekStartsOn, weekDates]);
 
     useEffect(() => {
       const [startDate, endDate] = calendarView === 'week'
@@ -316,7 +316,7 @@ function DashboardPage() {
         .catch(() => {
           // Step badges simply stay hidden if this fails to load.
         });
-    }, [selectedDate, calendarView, weekStartsOn]);
+    }, [selectedDate, calendarView, weekStartsOn, weekDates]);
 
     useEffect(() => {
       const [startDate, endDate] = (() => {
