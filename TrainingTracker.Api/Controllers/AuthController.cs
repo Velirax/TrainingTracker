@@ -1,12 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using TrainingTracker.Api.Data;
 using TrainingTracker.Api.Dtos;
 using TrainingTracker.Api.Models;
+using TrainingTracker.Api.Services;
 
 namespace TrainingTracker.Api.Controllers;
 
@@ -15,12 +12,14 @@ namespace TrainingTracker.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
-    private readonly IConfiguration _configuration;
+    private readonly TokenService _tokenService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AppDbContext dbContext, IConfiguration configuration)
+    public AuthController(AppDbContext dbContext, TokenService tokenService, ILogger<AuthController> logger)
     {
         _dbContext = dbContext;
-        _configuration = configuration;
+        _tokenService = tokenService;
+        _logger = logger;
     }
 
     [HttpPost("register")]
@@ -38,7 +37,7 @@ public class AuthController : ControllerBase
         };
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
-        return Created("", CreateResponse(user));
+        return Created("", await CreateSessionResponse(user));
     }
 
     [HttpPost("login")]
@@ -49,17 +48,121 @@ public class AuthController : ControllerBase
         if (user is null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
             return Unauthorized(new { message = "Email or password is incorrect." });
 
-        return Ok(CreateResponse(user));
+        return Ok(await CreateSessionResponse(user));
     }
 
-    private object CreateResponse(AppUser user)
+    [HttpPost("refresh")]
+    public async Task<ActionResult<object>> Refresh(RefreshRequestDto request)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-            _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key is missing.")));
-        var token = new JwtSecurityToken(
-            claims: [new Claim(ClaimTypes.NameIdentifier, user.Id), new Claim(ClaimTypes.Name, user.DisplayName)],
-            expires: DateTime.UtcNow.AddDays(7),
-            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
-        return new { token = new JwtSecurityTokenHandler().WriteToken(token), user = new { user.Id, user.Email, user.DisplayName } };
+        var tokenHash = TokenService.HashToken(request.RefreshToken);
+        var storedToken = await _dbContext.RefreshTokens
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
+
+        if (storedToken is null || storedToken.RevokedAt is not null || storedToken.ExpiresAt <= DateTime.UtcNow)
+            return Unauthorized(new { message = "Your session has expired. Please sign in again." });
+
+        var user = await _dbContext.Users.FindAsync(storedToken.UserId);
+        if (user is null)
+            return Unauthorized(new { message = "Your session has expired. Please sign in again." });
+
+        // Rotate: revoke the presented token so it can't be replayed even if intercepted.
+        storedToken.RevokedAt = DateTime.UtcNow;
+        return Ok(await CreateSessionResponse(user));
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(LogoutDto request)
+    {
+        var tokenHash = TokenService.HashToken(request.RefreshToken);
+        var storedToken = await _dbContext.RefreshTokens
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
+
+        if (storedToken is not null && storedToken.RevokedAt is null)
+        {
+            storedToken.RevokedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+        }
+
+        return NoContent();
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordDto request)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await _dbContext.Users.SingleOrDefaultAsync(item => item.Email == email);
+
+        // Always respond the same way regardless of whether the email exists,
+        // so this endpoint can't be used to enumerate registered accounts.
+        if (user is not null)
+        {
+            var (rawToken, tokenHash, expiresAt) = TokenService.GenerateOpaqueToken(TimeSpan.FromHours(1));
+            user.PasswordResetTokenHash = tokenHash;
+            user.PasswordResetTokenExpiresAt = expiresAt;
+            await _dbContext.SaveChangesAsync();
+
+            // No email provider is configured yet - logging the link is the
+            // interim delivery mechanism until one is wired in.
+            _logger.LogInformation(
+                "Password reset requested for {Email}. Reset link: http://localhost:5173/reset-password?email={Email}&token={Token}",
+                email, Uri.EscapeDataString(email), rawToken);
+        }
+
+        return Ok(new { message = "If an account exists for that email, a reset link has been sent." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordDto request)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await _dbContext.Users.SingleOrDefaultAsync(item => item.Email == email);
+        var tokenHash = TokenService.HashToken(request.Token);
+
+        if (user is null ||
+            user.PasswordResetTokenHash != tokenHash ||
+            user.PasswordResetTokenExpiresAt is null ||
+            user.PasswordResetTokenExpiresAt <= DateTime.UtcNow)
+        {
+            return BadRequest(new { message = "This reset link is invalid or has expired." });
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetTokenExpiresAt = null;
+
+        // A password reset should invalidate every existing session, not just
+        // the current device's.
+        var activeTokens = await _dbContext.RefreshTokens
+            .Where(token => token.UserId == user.Id && token.RevokedAt == null)
+            .ToListAsync();
+        foreach (var token in activeTokens)
+        {
+            token.RevokedAt = DateTime.UtcNow;
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return Ok(new { message = "Your password has been reset. Please sign in again." });
+    }
+
+    private async Task<object> CreateSessionResponse(AppUser user)
+    {
+        var (accessToken, accessTokenExpiresAt) = _tokenService.CreateAccessToken(user);
+        var (rawRefreshToken, refreshTokenHash, refreshTokenExpiresAt) = TokenService.GenerateRefreshToken();
+
+        _dbContext.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = refreshTokenHash,
+            ExpiresAt = refreshTokenExpiresAt
+        });
+        await _dbContext.SaveChangesAsync();
+
+        return new
+        {
+            token = accessToken,
+            tokenExpiresAt = accessTokenExpiresAt,
+            refreshToken = rawRefreshToken,
+            user = new { user.Id, user.Email, user.DisplayName }
+        };
     }
 }

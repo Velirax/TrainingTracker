@@ -10,5 +10,15 @@ public class AppUser
     public int WeekStartsOn { get; set; } = 1;
     public string DefaultCalendarView { get; set; } = "week";
     public double? WeightKg { get; set; }
+
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetTokenExpiresAt { get; set; }
+
+    public int? WeeklyTrainingMinutesGoal { get; set; }
+    public int? DailyStepsGoal { get; set; }
+    public int? StreakGoalDays { get; set; }
+
+    public DateTime? LastStepsImportAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

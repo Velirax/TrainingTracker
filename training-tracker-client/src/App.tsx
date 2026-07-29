@@ -3,7 +3,10 @@ import './App.css';
 import DashboardPage from './pages/DashboardPage';
 import SportFoldersPage from './pages/SportFoldersPage';
 import AuthPage from './components/AuthPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
 import ProfilePage from './pages/ProfilePage';
+import { logout } from './services/authService';
+import type { StoredAuth } from './services/apiClient';
 
 function getStoredTheme(): 'light' | 'dark' {
   const stored = localStorage.getItem('training-tracker-theme');
@@ -11,11 +14,19 @@ function getStoredTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function getResetPasswordParams(): { email: string; token: string } | null {
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get('email');
+  const token = params.get('token');
+  return email && token ? { email, token } : null;
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'sports' | 'profile'>('home');
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user ?? null);
   const [authMessage, setAuthMessage] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>(getStoredTheme);
+  const [resetPasswordParams, setResetPasswordParams] = useState(getResetPasswordParams);
 
   useEffect(() => {
     const handleExpired = () => { setUser(null); setAuthMessage('Your session expired. Please sign in again.'); };
@@ -28,8 +39,38 @@ function App() {
     localStorage.setItem('training-tracker-theme', theme);
   }, [theme]);
 
-  if (!user) return <AuthPage initialMessage={authMessage} onAuthenticated={() => { setAuthMessage(''); setUser(JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null')?.user ?? null); }} />;
-  const signOut = () => { localStorage.removeItem('training-tracker-auth'); setUser(null); };
+  if (resetPasswordParams) {
+    return (
+      <ResetPasswordPage
+        email={resetPasswordParams.email}
+        token={resetPasswordParams.token}
+        onDone={() => {
+          window.history.replaceState({}, '', window.location.pathname);
+          setResetPasswordParams(null);
+        }}
+      />
+    );
+  }
+
+  if (!user) {
+    return (
+      <AuthPage
+        initialMessage={authMessage}
+        onAuthenticated={(auth: StoredAuth) => {
+          localStorage.setItem('training-tracker-auth', JSON.stringify(auth));
+          setAuthMessage('');
+          setUser(auth.user);
+        }}
+      />
+    );
+  }
+
+  const signOut = () => {
+    const auth = JSON.parse(localStorage.getItem('training-tracker-auth') ?? 'null') as StoredAuth | null;
+    if (auth?.refreshToken) void logout(auth.refreshToken);
+    localStorage.removeItem('training-tracker-auth');
+    setUser(null);
+  };
   const initials = user.displayName.slice(0, 2).toUpperCase();
 
   return (

@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<AppUser> Users { get; set; }
     public DbSet<WorkoutTemplate> WorkoutTemplates { get; set; }
     public DbSet<DailySteps> DailySteps { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +59,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<DailySteps>()
             .HasIndex(entry => new { entry.UserId, entry.Date })
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(token => token.TokenHash)
             .IsUnique();
     }
 }
