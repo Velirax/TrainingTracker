@@ -57,7 +57,23 @@ export default function ProfilePage({ user, onSignOut }: ProfilePageProps) {
 
     setIsImportingSteps(true);
     try {
-      const result = await importSamsungHealthSteps(file);
+      let result = await importSamsungHealthSteps(file);
+
+      if (result.flagged.length > 0) {
+        const summary = result.flagged
+          .map((day) => `${day.date}: ${day.existingCount.toLocaleString()} → ${day.incomingCount.toLocaleString()}`)
+          .join('\n');
+        const shouldOverride = window.confirm(
+          `${result.flagged.length} day${result.flagged.length === 1 ? '' : 's'} in this file are drastically lower than what's already recorded ` +
+          `(possibly the wrong Samsung Health export - e.g. per-interval data instead of the daily total):\n\n${summary}\n\n` +
+          'These were left unchanged. Import them anyway?',
+        );
+
+        if (shouldOverride) {
+          result = await importSamsungHealthSteps(file, true);
+        }
+      }
+
       const total = result.added + result.updated;
       setImportMessage(
         total === 0

@@ -42,16 +42,27 @@ export async function previewSamsungHealthImport(file: File): Promise<SamsungHea
   return response.json() as Promise<SamsungHealthImportRow[]>;
 }
 
+export interface SamsungHealthStepsFlaggedDay {
+  date: string;
+  existingCount: number;
+  incomingCount: number;
+}
+
 export interface SamsungHealthStepsImportResult {
   added: number;
   updated: number;
+  flagged: SamsungHealthStepsFlaggedDay[];
   rangeStart: string;
   rangeEnd: string;
 }
 
-export async function importSamsungHealthSteps(file: File): Promise<SamsungHealthStepsImportResult> {
+export async function importSamsungHealthSteps(
+  file: File,
+  force = false,
+): Promise<SamsungHealthStepsImportResult> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('force', String(force));
 
   const response = await apiFetch(`${apiBaseUrl}/imports/samsung-health/steps`, {
     method: 'POST',

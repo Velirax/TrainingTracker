@@ -150,9 +150,16 @@ public class SamsungHealthImportController : ControllerBase
         return Ok(new { imported = sessionsToAdd.Count, skippedDuplicates });
     }
 
+    // Below this ratio of an existing day's count, a new reading is treated as
+    // suspicious rather than a legitimate correction - guards against silently
+    // clobbering good data if the wrong Samsung export CSV gets uploaded (e.g.
+    // per-interval pedometer_step_count instead of the daily pedometer_day_summary).
+    private const double SuspiciousDropRatio = 0.5;
+    private const int SuspiciousDropMinimumExisting = 200;
+
     [HttpPost("steps")]
     [RequestSizeLimit(10_000_000)]
-    public async Task<ActionResult<object>> ImportSteps([FromForm] IFormFile? file)
+    public async Task<ActionResult<object>> ImportSteps([FromForm] IFormFile? file, [FromForm] bool force = false)
     {
         if (file is null || file.Length == 0)
         {
@@ -190,6 +197,7 @@ public class SamsungHealthImportController : ControllerBase
 
         var added = 0;
         var updated = 0;
+        var flagged = new List<object>();
 
         foreach (var row in rows)
         {
@@ -197,6 +205,15 @@ public class SamsungHealthImportController : ControllerBase
             {
                 if (existing.StepCount == row.StepCount)
                 {
+                    continue;
+                }
+
+                var isSuspiciousDrop = existing.StepCount >= SuspiciousDropMinimumExisting &&
+                    row.StepCount < existing.StepCount * SuspiciousDropRatio;
+
+                if (isSuspiciousDrop && !force)
+                {
+                    flagged.Add(new { date = row.Date, existingCount = existing.StepCount, incomingCount = row.StepCount });
                     continue;
                 }
 
@@ -223,6 +240,7 @@ public class SamsungHealthImportController : ControllerBase
         {
             added,
             updated,
+            flagged,
             rangeStart = rows[0].Date,
             rangeEnd = rows[^1].Date
         });
