@@ -1,30 +1,29 @@
 import { type CSSProperties, useEffect, useState } from 'react';
 import '../App.css';
-import sportHoverSprite from '../assets/sport-hover-sprite.jpg';
 import SportFolderDetail from '../components/SportFolderDetail';
 import { getSportFolders } from '../services/sportFolderService';
+import { getTrainingSessionsForSportFolder } from '../services/trainingSessionService';
 import type { SportFolder } from '../types/sportFolder';
 
-const sportImagePositions: Record<string, string> = {
-  Tennis: '0% 0%',
-  Padel: '50% 0%',
-  Basketball: '100% 0%',
-  Calisthenics: '0% 50%',
-  Cycling: '50% 50%',
-  Football: '100% 50%',
-  Hiking: '0% 100%',
-  Walking: '50% 100%',
-  Yoga: '100% 100%',
-  Gym: '0% 50%',
-  Running: '50% 100%',
-  Swimming: '100% 100%',
-};
+interface FolderStats {
+  hours: number;
+  kcal: number;
+}
+
+function formatCompact(value: number): string {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+  }
+
+  return String(Math.round(value));
+}
 
 function SportFoldersPage() {
   const [sports, setSports] = useState<SportFolder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSport, setSelectedSport] = useState<SportFolder | null>(null);
+  const [folderStats, setFolderStats] = useState<Record<number, FolderStats>>({});
 
   useEffect(() => {
     async function loadSports() {
@@ -39,6 +38,28 @@ function SportFoldersPage() {
 
     loadSports();
   }, []);
+
+  useEffect(() => {
+    async function loadFolderStats() {
+      const entries = await Promise.all(sports.map(async (sport) => {
+        try {
+          const sessions = await getTrainingSessionsForSportFolder(sport.id);
+          const completedSessions = sessions.filter((session) => session.status === 'Completed');
+          const hours = completedSessions.reduce((total, session) => total + session.durationMinutes, 0) / 60;
+          const kcal = completedSessions.reduce((total, session) => total + session.calories, 0);
+          return [sport.id, { hours, kcal }] as const;
+        } catch {
+          return [sport.id, { hours: 0, kcal: 0 }] as const;
+        }
+      }));
+
+      setFolderStats(Object.fromEntries(entries));
+    }
+
+    if (sports.length > 0) {
+      loadFolderStats();
+    }
+  }, [sports]);
 
   if (isLoading) {
     return <main>Loading sports...</main>;
@@ -76,43 +97,36 @@ function SportFoldersPage() {
         <p>Sessions, exercises, and progress for every way you train.</p>
       </header>
 
-      <section className="sport-catalog-section">
-        <div className="section-heading">
-          <div><span className="section-kicker">All sports</span><h2>Choose a sport</h2></div>
-          <span className="section-count">{activeSports.length} available</span>
-        </div>
+      {activeSports.length === 0 ? (
+        <p>No sports are available yet.</p>
+      ) : (
+        <div className="folder-grid">
+          {activeSports.map((sport) => {
+            const stats = folderStats[sport.id];
 
-        {activeSports.length === 0 ? (
-          <p>No sports are available yet.</p>
-        ) : (
-          <ul className="sport-catalog-list">
-            {activeSports.map((sport) => (
-              <li
+            return (
+              <button
+                className="folder-card"
                 key={sport.id}
-                style={{
-                  '--sport-color': sport.color,
-                  '--sport-background': `url(${sportHoverSprite})`,
-                  '--sport-background-position': sportImagePositions[sport.name] ?? '50% 50%',
-                } as CSSProperties}
+                style={{ '--sport-color': sport.color } as CSSProperties}
+                type="button"
+                onClick={() => setSelectedSport(sport)}
               >
-                <button
-                  className="sport-folder-button"
-                  type="button"
-                  onClick={() => setSelectedSport(sport)}
-                >
-                  <span className="sport-card-title">
-                    <i aria-hidden="true">{sport.name.charAt(0)}</i>
-                    {sport.name}
-                  </span>
-                  <small>
-                    {sport.sessionCount} {sport.sessionCount === 1 ? 'session' : 'sessions'}
-                  </small>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                <div className="folder-tab" style={{ background: sport.color }} />
+                <div className="folder-body">
+                  <p className="name">{sport.icon ?? sport.name.charAt(0)} {sport.name}</p>
+                  <p className="meta">{sport.sessionCount} {sport.sessionCount === 1 ? 'session' : 'sessions'} all-time</p>
+                  <div className="folder-stats">
+                    <div>{sport.sessionCount}<span>Sessions</span></div>
+                    <div>{stats ? stats.hours.toFixed(1) : '–'}<span>Hours</span></div>
+                    <div>{stats ? formatCompact(stats.kcal) : '–'}<span>Kcal</span></div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </main>
   );
 }

@@ -14,6 +14,7 @@ export interface TrainingSession {
   rating: number | null;
   notes: string | null;
   recurrenceGroupId: string | null;
+  calories: number;
   exercises: TrainingSessionExercise[];
   createdAt: string;
   updatedAt: string;

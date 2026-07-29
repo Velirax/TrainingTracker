@@ -9,5 +9,6 @@ public class AppUser
     public string DistanceUnit { get; set; } = "km";
     public int WeekStartsOn { get; set; } = 1;
     public string DefaultCalendarView { get; set; } = "week";
+    public double? WeightKg { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -4,6 +4,7 @@ export interface Preferences {
   distanceUnit: 'km' | 'mi';
   weekStartsOn: number;
   defaultCalendarView: 'week' | 'month';
+  weightKg: number | null;
 }
 
 export async function getPreferences(): Promise<Preferences> {
