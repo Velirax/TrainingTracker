@@ -6,9 +6,14 @@ interface WeeklyLedgerProps {
   anchorDate: Date;
   firstDay: number;
   sessions: TrainingSession[];
+  stepsByDate?: Record<string, number>;
   onSessionClick: (sessionId: number) => void;
   onDayClick: (date: Date) => void;
   onSessionReschedule: (sessionId: number, newDate: Date) => void;
+}
+
+function formatStepCount(count: number): string {
+  return count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
 }
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -82,6 +87,7 @@ function WeeklyLedger({
   anchorDate,
   firstDay,
   sessions,
+  stepsByDate,
   onSessionClick,
   onDayClick,
   onSessionReschedule,
@@ -150,6 +156,9 @@ function WeeklyLedger({
                   <div className="day-num" onClick={() => onDayClick(day)}>
                     <span>{day.getDate()}</span>
                   </div>
+                  {stepsByDate?.[dateKey] !== undefined && (
+                    <div className="day-steps">{formatStepCount(stepsByDate[dateKey])} steps</div>
+                  )}
 
                   {daySessions.map((session) => (
                     <button

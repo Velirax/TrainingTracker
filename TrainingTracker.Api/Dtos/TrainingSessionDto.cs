@@ -34,6 +34,8 @@ public class TrainingSessionDto
 
     public int Calories { get; set; }
 
+    public int? ImportedCalories { get; set; }
+
     public List<TrainingSessionExerciseDto> Exercises { get; set; } = [];
 
     public DateTime CreatedAt { get; set; }
