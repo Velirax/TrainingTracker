@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fullcalendar/react": "^7.0.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "temporal-polyfill": "^1.0.1"

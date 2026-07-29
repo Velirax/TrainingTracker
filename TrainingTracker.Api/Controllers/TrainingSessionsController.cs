@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using TrainingTracker.Api.Data;
 using TrainingTracker.Api.Dtos;
 using TrainingTracker.Api.Models;
+using TrainingTracker.Api.Services;
 
 namespace TrainingTracker.Api.Controllers;
 
@@ -67,6 +68,7 @@ public class TrainingSessionsController : ControllerBase
             .ToListAsync();
 
         await AttachExerciseDetails(sessions);
+        await ApplyCalories(sessions);
         return Ok(sessions);
     }
 
@@ -108,6 +110,7 @@ public class TrainingSessionsController : ControllerBase
             .ToListAsync();
 
         await AttachExerciseDetails(sessions);
+        await ApplyCalories(sessions);
         return Ok(sessions);
     }
 
@@ -151,6 +154,7 @@ public class TrainingSessionsController : ControllerBase
             .ToListAsync();
 
         await AttachExerciseDetails(sessions);
+        await ApplyCalories(sessions);
         return Ok(sessions);
     }
 
@@ -221,7 +225,7 @@ public class TrainingSessionsController : ControllerBase
         _dbContext.TrainingSessions.Add(trainingSession);
         await _dbContext.SaveChangesAsync();
 
-        return StatusCode(StatusCodes.Status201Created, new TrainingSessionDto
+        var createdDto = new TrainingSessionDto
         {
             Id = trainingSession.Id,
             SportFolderId = sportFolder.Id,
@@ -241,7 +245,10 @@ public class TrainingSessionsController : ControllerBase
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
-        });
+        };
+        await ApplyCalories([createdDto]);
+
+        return StatusCode(StatusCodes.Status201Created, createdDto);
     }
 
     [HttpPut("{id:int}")]
@@ -332,7 +339,7 @@ public class TrainingSessionsController : ControllerBase
 
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new TrainingSessionDto
+        var updatedDto = new TrainingSessionDto
         {
             Id = trainingSession.Id,
             SportFolderId = sportFolder.Id,
@@ -352,7 +359,10 @@ public class TrainingSessionsController : ControllerBase
             Exercises = ToExerciseDtos(trainingSession.Exercises),
             CreatedAt = trainingSession.CreatedAt,
             UpdatedAt = trainingSession.UpdatedAt
-        });
+        };
+        await ApplyCalories([updatedDto]);
+
+        return Ok(updatedDto);
     }
 
     [HttpDelete("{id:int}")]
@@ -501,6 +511,33 @@ public class TrainingSessionsController : ControllerBase
         foreach (var session in sessions)
         {
             session.Exercises = entriesBySessionId.GetValueOrDefault(session.Id, []);
+        }
+    }
+
+    private async Task ApplyCalories(List<TrainingSessionDto> sessions)
+    {
+        if (sessions.Count == 0)
+        {
+            return;
+        }
+
+        var weightKg = await _dbContext.Users
+            .Where(user => user.Id == CurrentUserId)
+            .Select(user => user.WeightKg)
+            .FirstOrDefaultAsync();
+
+        foreach (var session in sessions)
+        {
+            var manualTotal = session.Exercises
+                .Where(exercise => exercise.TrackingValues.ContainsKey("Calories"))
+                .Sum(exercise => double.TryParse(exercise.TrackingValues["Calories"], out var value) ? value : 0);
+
+            session.Calories = manualTotal > 0
+                ? (int)Math.Round(manualTotal)
+                : CalorieCalculationService.EstimateCalories(
+                    session.SportFolderName,
+                    session.DurationMinutes,
+                    weightKg);
         }
     }
 

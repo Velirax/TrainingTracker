@@ -11,8 +11,7 @@ import { getSportFolders } from '../services/sportFolderService';
 import { getPreferences } from '../services/profileService';
 import type { SportFolder } from '../types/sportFolder';
 import type { TrainingSession } from '../types/trainingSession';
-import TrainingCalendar from '../components/TrainingCalendar';
-import MonthCalendar from '../components/MonthCalendar';
+import WeeklyLedger from '../components/WeeklyLedger';
 import SessionDetailsDialog from '../components/SessionDetailsDialog';
 import SessionDialog from '../components/SessionDialog';
 import SessionReviewDialog from '../components/SessionReviewDialog';
@@ -152,15 +151,32 @@ function formatExerciseTooltip(session: TrainingSession): string {
   }).join('\n');
 }
 
-interface SelectedTimeRange {
-  start: Date;
-  end: Date;
+function sumCalories(sessionsList: TrainingSession[]): number {
+  return sessionsList.reduce((total, session) => total + session.calories, 0);
 }
+
+function computeStreak(historySessions: TrainingSession[]): number {
+  const completedDates = new Set(
+    historySessions.filter((session) => session.status === 'Completed').map((session) => session.sessionDate),
+  );
+  const cursor = new Date();
+  let streak = 0;
+
+  if (!completedDates.has(formatDateForApi(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  while (completedDates.has(formatDateForApi(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
 function DashboardPage() {
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [calendarView, setCalendarView] = useState<
-      'timeGridWeek' | 'dayGridMonth'
-    >('timeGridWeek');
+    const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
     const [weekStartsOn, setWeekStartsOn] = useState(1);
     const [distanceUnit, setDistanceUnit] = useState<'km' | 'mi'>('km');
     const weekDates = getWeekDates(selectedDate, weekStartsOn);
@@ -178,8 +194,9 @@ function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [selectedTimeRange, setSelectedTimeRange] = useState<SelectedTimeRange | null>(null);
+    const [pendingCreateDate, setPendingCreateDate] = useState<Date | null>(null);
     const [isSessionDialogOpen, setIsSessionDialogOpen] = useState(false);
+    const [streakHistorySessions, setStreakHistorySessions] = useState<TrainingSession[]>([]);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
     const [sessionToComplete, setSessionToComplete] = useState<TrainingSession | null>(null);
     const [editingSession, setEditingSession] = useState<TrainingSession | null>(null);
@@ -245,12 +262,10 @@ function DashboardPage() {
 
     useEffect(() => {
       getPreferences().then((preferences) => {
-        const preferredCalendarView = preferences.defaultCalendarView === 'month'
-          ? 'dayGridMonth'
-          : 'timeGridWeek';
+        const preferredCalendarView = preferences.defaultCalendarView === 'month' ? 'month' : 'week';
 
         setCalendarView(preferredCalendarView);
-        setOverviewRange(preferredCalendarView === 'dayGridMonth' ? 'month' : 'week');
+        setOverviewRange(preferredCalendarView);
         setWeekStartsOn(preferences.weekStartsOn);
         setDistanceUnit(preferences.distanceUnit);
       }).catch(() => {
@@ -265,7 +280,7 @@ function DashboardPage() {
             setError(null);
 
             try {
-            const [startDate, endDate] = calendarView === 'timeGridWeek'
+            const [startDate, endDate] = calendarView === 'week'
                 ? [weekDates[0], weekDates[6]]
                 : getMonthGridDates(selectedDate, weekStartsOn);
 
@@ -324,6 +339,25 @@ function DashboardPage() {
     }, []);
 
     useEffect(() => {
+      async function loadStreakHistory() {
+        const today = new Date();
+        const ninetyDaysAgo = new Date(today);
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+        try {
+          setStreakHistorySessions(await getTrainingSessions(
+            formatDateForApi(ninetyDaysAgo),
+            formatDateForApi(today),
+          ));
+        } catch {
+          // The streak stat simply stays at 0 if this fails to load.
+        }
+      }
+
+      loadStreakHistory();
+    }, []);
+
+    useEffect(() => {
       async function loadSessionsNeedingReview() {
         try {
           setSessionsNeedingReview(await getSessionsNeedingReview());
@@ -340,7 +374,7 @@ function DashboardPage() {
         setSelectedDate((currentDate) => {
             const nextDate = new Date(currentDate);
 
-            if (calendarView === 'timeGridWeek') {
+            if (calendarView === 'week') {
               nextDate.setDate(nextDate.getDate() + direction * 7);
             } else {
               nextDate.setMonth(nextDate.getMonth() + direction);
@@ -350,22 +384,47 @@ function DashboardPage() {
         });
     }
 
-    function handleTimeRangeSelect(start: Date, end: Date) {
-      setSelectedTimeRange({ start, end });
+    function handleDayClick(date: Date) {
+      setPendingCreateDate(date);
       setIsSessionDialogOpen(false);
       setSelectedSession(null);
     }
 
-    function handleTimeRangeClear() {
-    setSelectedTimeRange(null);
-    setIsSessionDialogOpen(false);
+    function handleCreateDismiss() {
+      setPendingCreateDate(null);
+      setIsSessionDialogOpen(false);
+    }
+
+    async function handleSessionReschedule(sessionId: number, newDate: Date) {
+      const session = sessions.find((item) => item.id === sessionId);
+
+      if (!session) return;
+
+      try {
+        const updated = await updateTrainingSession(session.id, {
+          sportFolderId: session.sportFolderId,
+          title: session.title,
+          sessionDate: formatDateForApi(newDate),
+          startTime: session.startTime,
+          endTime: session.endTime,
+          sessionType: session.sessionType,
+          status: session.status,
+          rating: session.rating,
+          notes: session.notes,
+          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
+        });
+        setSessions((items) => items.map((item) => item.id === updated.id ? updated : item));
+        setUpcomingSessionSource((items) => items.map((item) => item.id === updated.id ? updated : item));
+      } catch {
+        setError('Could not reschedule the session.');
+      }
     }
 
     function handleSessionClick(sessionId: number) {
       const session = sessions.find((currentSession) => currentSession.id === sessionId);
 
       if (session) {
-          setSelectedTimeRange(null);
+          setPendingCreateDate(null);
           setIsSessionDialogOpen(false);
           setSelectedSession(session);
       }
@@ -446,31 +505,6 @@ function DashboardPage() {
         setSuccessMessage('Created a planned copy for next week.');
       } catch { setError('Could not duplicate the session for next week.'); }
     }
-    async function handleSessionScheduleChange(sessionId: number, start: Date, end: Date) {
-      const session = sessions.find((item) => item.id === sessionId);
-
-      if (!session) return;
-
-      try {
-        const updated = await updateTrainingSession(session.id, {
-          sportFolderId: session.sportFolderId,
-          title: session.title,
-          sessionDate: formatDateForApi(start),
-          startTime: start.toTimeString().slice(0, 5) + ':00',
-          endTime: end.toTimeString().slice(0, 5) + ':00',
-          sessionType: session.sessionType,
-          status: session.status,
-          rating: session.rating,
-          notes: session.notes,
-          exercises: session.exercises.map((exercise) => ({ exerciseId: exercise.exerciseId, trackingValues: exercise.trackingValues })),
-        });
-        setSessions((items) => items.map((item) => item.id === updated.id ? updated : item));
-        setUpcomingSessionSource((items) => items.map((item) => item.id === updated.id ? updated : item));
-      } catch {
-        setError('Could not reschedule the session.');
-      }
-    }
-
     async function handleSessionCancel(session: TrainingSession) {
       try {
         const cancelled = await updateTrainingSession(session.id, {
@@ -528,6 +562,28 @@ function DashboardPage() {
           </select>
           {(searchTerm || sportFilter || statusFilter || typeFilter) && <button className="secondary-button" type="button" onClick={() => { setSearchTerm(''); setSportFilter(''); setStatusFilter(''); setTypeFilter(''); }}>Clear filters</button>}
           </section>
+        </div>
+        <div className="stat-strip">
+          <div className="stat">
+            <div className="stat-label">Training load</div>
+            <div className="stat-value">{(totalTrainingMinutes / 60).toFixed(1)}<small>hrs this period</small></div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">Sessions completed</div>
+            <div className="stat-value">{completedSessions.length}<small>of {filteredOverviewSessions.length} logged</small></div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">Current streak</div>
+            <div className="stat-value">{computeStreak(streakHistorySessions)}<small>days</small></div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">Avg. session</div>
+            <div className="stat-value">{completedSessions.length > 0 ? Math.round(totalTrainingMinutes / filteredOverviewSessions.length) : 0}<small>min</small></div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">Calories burned</div>
+            <div className="stat-value">{sumCalories(completedSessions).toLocaleString()}<small>kcal est.</small></div>
+          </div>
         </div>
         <section className="dashboard-summary">
           <div className="dashboard-overview">
@@ -622,7 +678,7 @@ function DashboardPage() {
         <section className="calendar-surface">
         <div className="calendar-toolbar">
         <h2>
-            {calendarView === 'dayGridMonth'
+            {calendarView === 'month'
               ? monthFormatter.format(selectedDate)
               : (
                 <>
@@ -645,20 +701,20 @@ function DashboardPage() {
         </div>
         <div className="calendar-view-controls">
             <button
-              aria-pressed={calendarView === 'timeGridWeek'}
+              aria-pressed={calendarView === 'week'}
               type="button"
               onClick={() => {
-                setCalendarView('timeGridWeek');
+                setCalendarView('week');
                 setOverviewRange('week');
               }}
             >
               Week
             </button>
             <button
-              aria-pressed={calendarView === 'dayGridMonth'}
+              aria-pressed={calendarView === 'month'}
               type="button"
               onClick={() => {
-                setCalendarView('dayGridMonth');
+                setCalendarView('month');
                 setOverviewRange('month');
               }}
             >
@@ -674,30 +730,19 @@ function DashboardPage() {
             <p role="alert">{error}</p>
           ) : (
             <>
-              {calendarView === 'dayGridMonth' ? (
-                <MonthCalendar
-                  selectedDate={selectedDate}
-                  firstDay={weekStartsOn}
-                  sessions={filteredSessions}
-                  onSessionClick={handleSessionClick}
-                />
-              ) : (
-                <TrainingCalendar
-                  key={`${formatDateForApi(selectedDate)}-${sessions.map((session) => `${session.id}-${session.updatedAt}`).join(',')}`}
-                  initialDate={selectedDate}
-                  firstDay={weekStartsOn}
-                  sessions={filteredSessions}
-                  onTimeRangeSelect={handleTimeRangeSelect}
-                  onTimeRangeClear={handleTimeRangeClear}
-                  onSessionClick={handleSessionClick}
-                  onSessionScheduleChange={handleSessionScheduleChange}
-                />
-              )}
-                {selectedTimeRange && !isSessionDialogOpen && (
+              <WeeklyLedger
+                mode={calendarView}
+                anchorDate={selectedDate}
+                firstDay={weekStartsOn}
+                sessions={filteredSessions}
+                onSessionClick={handleSessionClick}
+                onDayClick={handleDayClick}
+                onSessionReschedule={(sessionId, newDate) => void handleSessionReschedule(sessionId, newDate)}
+              />
+                {pendingCreateDate && !isSessionDialogOpen && (
                 <div className="selected-range-actions">
                     <p>
-                    {selectedTimeRange.start.toLocaleString()} –{' '}
-                    {selectedTimeRange.end.toLocaleString()}
+                    {pendingCreateDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
                     </p>
 
                     <button
@@ -706,17 +751,21 @@ function DashboardPage() {
                     >
                     Create session
                     </button>
+                    <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={handleCreateDismiss}
+                    >
+                    Dismiss
+                    </button>
                 </div>
                 )}
 
-                {selectedTimeRange && isSessionDialogOpen && (
+                {pendingCreateDate && isSessionDialogOpen && (
                 <SessionDialog
-                    start={selectedTimeRange.start}
-                    end={selectedTimeRange.end}
-                    onClose={() => {
-                    setIsSessionDialogOpen(false);
-                    setSelectedTimeRange(null);
-                    }}
+                    start={new Date(pendingCreateDate.getFullYear(), pendingCreateDate.getMonth(), pendingCreateDate.getDate(), 9, 0)}
+                    end={new Date(pendingCreateDate.getFullYear(), pendingCreateDate.getMonth(), pendingCreateDate.getDate(), 10, 0)}
+                    onClose={handleCreateDismiss}
                     onCreated={(createdSession) => {
                     setSessions((currentSessions) => [
                         ...currentSessions,
@@ -727,7 +776,7 @@ function DashboardPage() {
                       createdSession,
                     ]);
                     setIsSessionDialogOpen(false);
-                    setSelectedTimeRange(null);
+                    setPendingCreateDate(null);
                     }}
                 />
                 )}

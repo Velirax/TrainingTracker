@@ -15,7 +15,7 @@ public class ProfileController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> GetPreferences()
     {
         var user = await db.Users.FindAsync(UserId);
-        return user is null ? NotFound() : Ok(new { user.DistanceUnit, user.WeekStartsOn, user.DefaultCalendarView });
+        return user is null ? NotFound() : Ok(new { user.DistanceUnit, user.WeekStartsOn, user.DefaultCalendarView, user.WeightKg });
     }
 
     [HttpPut("preferences")]
@@ -24,13 +24,17 @@ public class ProfileController(AppDbContext db) : ControllerBase
         if (request.DistanceUnit is not ("km" or "mi") || request.WeekStartsOn is < 0 or > 6 || request.DefaultCalendarView is not ("week" or "month"))
             return BadRequest(new { message = "Invalid preferences." });
 
+        if (request.WeightKg is not null && request.WeightKg is < 20 or > 300)
+            return BadRequest(new { message = "Weight must be between 20 and 300 kg." });
+
         var user = await db.Users.FindAsync(UserId);
         if (user is null) return NotFound();
         user.DistanceUnit = request.DistanceUnit;
         user.WeekStartsOn = request.WeekStartsOn;
         user.DefaultCalendarView = request.DefaultCalendarView;
+        user.WeightKg = request.WeightKg;
         await db.SaveChangesAsync();
-        return Ok(new { user.DistanceUnit, user.WeekStartsOn, user.DefaultCalendarView });
+        return Ok(new { user.DistanceUnit, user.WeekStartsOn, user.DefaultCalendarView, user.WeightKg });
     }
 
     public class PreferencesRequest
@@ -38,5 +42,6 @@ public class ProfileController(AppDbContext db) : ControllerBase
         public string DistanceUnit { get; set; } = "km";
         public int WeekStartsOn { get; set; } = 1;
         public string DefaultCalendarView { get; set; } = "week";
+        public double? WeightKg { get; set; }
     }
 }

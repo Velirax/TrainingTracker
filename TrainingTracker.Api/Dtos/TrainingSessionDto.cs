@@ -32,6 +32,8 @@ public class TrainingSessionDto
 
     public string? RecurrenceGroupId { get; set; }
 
+    public int Calories { get; set; }
+
     public List<TrainingSessionExerciseDto> Exercises { get; set; } = [];
 
     public DateTime CreatedAt { get; set; }
